@@ -4964,7 +4964,7 @@ function renderDealsScroller(){
         <div class="deal-badge">${disc}% OFF</div>
         <div class="deal-img-box">
           <div class="deal-img-mono">${getInitials(p.name)}</div>
-          <img src="images/products/${p.id}.jpg" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
+          <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
         </div>
         <div class="deal-info">
           <div class="deal-brand">${p.brand !== 'Other' ? p.brand : 'NP Mart'}</div>
@@ -5193,7 +5193,7 @@ function renderCatalogGrid(){
         <div class="product-card animate-in ${isOos ? 'out-of-stock' : ''}">
           <div class="prod-img-wrap" onclick="openQuickView('${p.id}')" style="cursor:pointer;" title="Tap for Quick View">
             <div class="prod-monogram">${getInitials(p.name)}</div>
-            <img src="images/products/${p.id}.jpg" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
+            <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
             ${isOos ? `<span class="out-of-stock-badge">Out of Stock</span>` : (disc >= 8 ? `<span class="prod-discount-tag">${disc}% OFF</span>` : '')}
           </div>
           <div class="prod-card-body">
@@ -6953,7 +6953,7 @@ function openQuickView(productId){
   content.innerHTML = '<div class="qv-img-box">' +
     (disc >= 8 && !isOos ? '<span class="qv-tag">' + disc + '% OFF</span>' : '') +
     (isOos ? '<span class="qv-tag" style="background:#EF4444;">Sold Out</span>' : '') +
-    '<img src="images/products/' + p.id + '.jpg" alt="' + p.name + '" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'100\\\' height=\\\'100\\\' viewBox=\\\'0 0 100 100\\\'><text x=\\\'50%\\\' y=\\\'50%\\\' dominant-baseline=\\\'middle\\\' text-anchor=\\\'middle\\\' font-size=\\\'30\\\' fill=\\\'%2394A3B8\\\'>🛒</text></svg>\';" />' +
+    '<img src="/api/product-image?id=' + p.id + '" alt="' + p.name + '" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'100\\\' height=\\\'100\\\' viewBox=\\\'0 0 100 100\\\'><text x=\\\'50%\\\' y=\\\'50%\\\' dominant-baseline=\\\'middle\\\' text-anchor=\\\'middle\\\' font-size=\\\'30\\\' fill=\\\'%2394A3B8\\\'>🛒</text></svg>\';" />' +
   '</div>' +
   '<div class="qv-details">' +
     '<div class="qv-brand">' + (p.brand !== "Other" ? p.brand : "NP Mart Kirana") + '</div>' +
