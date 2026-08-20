@@ -3,6 +3,30 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<!-- Set the theme before anything paints, so night visitors / dark-device
+     visitors never see a flash of the light theme first. Mirrors the same
+     rule as computeAutoTheme()/initTheme() further down: forced dark
+     6:30pm-5:30am, otherwise follows the device's light/dark preference,
+     unless the visitor already manually chose a theme this visit. -->
+<script>
+(function(){
+  try {
+    var manual = localStorage.getItem("np_theme_manual") === "1";
+    var saved = localStorage.getItem("np_theme");
+    var theme;
+    if (manual && saved) {
+      theme = saved;
+    } else {
+      var now = new Date();
+      var mins = now.getHours() * 60 + now.getMinutes();
+      var isNight = (mins >= (18 * 60 + 30)) || (mins < (5 * 60 + 30));
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      theme = isNight ? "dark" : (prefersDark ? "dark" : "light");
+    }
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {}
+})();
+</script>
 <title>NP Mart — Supermarket Delivery | Partapur</title>
 <meta name="description" content="NP Mart — Order 15,000+ daily essentials, groceries, dairy, snacks, personal care & household items from New Pushpdant Kirana Store Partapur on WhatsApp." />
 <meta name="theme-color" content="#16A34A" />
@@ -251,6 +275,27 @@ a { text-decoration: none; color: inherit; }
   object-fit: contain;
   mix-blend-mode: var(--logo-blend);
 }
+
+/* ── HOME BUTTON (separate, next to logo) ── */
+.home-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 9px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, color 0.2s;
+}
+.home-nav-btn:hover { transform: scale(1.05); border-color: var(--accent-green); color: var(--accent-green); }
+.home-nav-btn:active { transform: scale(0.94); }
+.home-nav-icon { font-size: 15px; line-height: 1; }
 
 /* ── SEARCH BAR ──────────────────────────── */
 .header-search-wrap {
@@ -1859,46 +1904,11 @@ body.cart-open { overflow: hidden; }
   display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
 }
 .ai-add-all-btn.added { background: var(--text-faint); cursor: default; opacity: 0.85; }
-.ai-suggestions-row {
-  display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-  padding: 8px 16px; background: var(--surface); border-top: 1px solid var(--border);
+.ai-chef-disclaimer {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 9px 14px; background: var(--surface-2); border-top: 1px solid var(--border);
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
 }
-.ai-suggestions-row::-webkit-scrollbar { display: none; }
-.ai-chef-mode-tabs {
-  display: flex; gap: 6px; padding: 10px 14px 0;
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-}
-.ai-chef-mode-tab {
-  flex: 1; text-align: center; padding: 8px 6px; font-size: 12px; font-weight: 800;
-  color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.12);
-  border-radius: 10px 10px 0 0; cursor: pointer; transition: all 0.15s ease;
-  font-family: inherit;
-}
-.ai-chef-mode-tab.active { background: var(--surface-2); color: var(--accent-green); }
-.ai-chef-controls-row {
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-  padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border);
-}
-.ai-chef-control-group { display: flex; align-items: center; gap: 5px; }
-.ai-chef-control-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--text-faint); margin-right: 2px;
-}
-.ai-chef-chip {
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
-  padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: var(--text-muted);
-  cursor: pointer; transition: all 0.15s ease; font-family: inherit;
-}
-.ai-chef-chip.active {
-  background: rgba(16, 185, 129, 0.14); border-color: var(--accent-green); color: var(--accent-green);
-}
-
-.ai-sugg-pill {
-  flex: 0 0 auto; background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700;
-  color: var(--text); cursor: pointer; white-space: nowrap;
-}
-.ai-sugg-pill:hover { background: rgba(22, 163, 74, 0.1); border-color: var(--accent-green); color: var(--accent-green); }
 .ai-chef-input-bar {
   padding: 10px 14px; background: var(--surface); border-top: 1px solid var(--border);
   display: flex; gap: 8px; align-items: center;
@@ -2244,30 +2254,6 @@ body.cart-open { overflow: hidden; }
   50% { transform: translateY(-10px) scale(1.15) rotate(-10deg); opacity: 1; }
   75% { transform: translateY(0px) scale(1) rotate(0deg); opacity: 1; }
   100% { transform: translateY(-60px) scale(0.7) rotate(-15deg); opacity: 0; }
-}
-
-/* ── WHATSAPP SHARE BUTTON ON CARDS ── */
-.share-wa-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #25D366;
-  padding: 0;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
-  flex-shrink: 0;
-}
-.share-wa-btn:hover {
-  background: #25D366;
-  color: #FFFFFF;
-  border-color: #25D366;
-  transform: scale(1.12);
 }
 
 /* ── QUICK VIEW MODAL ── */
@@ -2633,6 +2619,22 @@ body.cart-open { overflow: hidden; }
   box-shadow: 0 0 8px #EF4444;
   animation: none;
 }
+/* Two-tone status text: bold caps word for the current state, a smaller
+   plain-case detail phrase colored by what it refers to (closes = red,
+   opens = green), regardless of the current state. */
+.status-word {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.status-word-open { color: #16A34A; }
+.status-word-closed { color: #DC2626; }
+.status-detail {
+  font-weight: 600;
+  text-transform: none;
+}
+.status-detail-close { color: #DC2626; }
+.status-detail-open { color: #16A34A; }
 @keyframes pulseDot {
   0% { transform: scale(0.9); opacity: 0.8; }
   50% { transform: scale(1.3); opacity: 1; }
@@ -3162,6 +3164,15 @@ html.os-ios .category-quick-strip {
     height: 34px;
     font-size: 14px;
   }
+  .home-nav-btn {
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .home-nav-label { display: none; }
+  .home-nav-icon { font-size: 16px; }
   .header-cart-btn {
     padding: 6px 10px;
     font-size: 12px;
@@ -3354,7 +3365,6 @@ html.os-ios .category-quick-strip {
   .prod-footer-actions {
     gap: 6px;
   }
-  .share-wa-btn,
   .inline-wish-btn {
     width: 30px;
     height: 30px;
@@ -3418,7 +3428,6 @@ html.os-ios .category-quick-strip {
   .prod-footer-actions {
     gap: 4px;
   }
-  .share-wa-btn,
   .inline-wish-btn {
     width: 28px;
     height: 28px;
@@ -3476,6 +3485,11 @@ html.os-ios .category-quick-strip {
   </div>
 </div>
 
+      <!-- Home Button (separate from logo, always visible) -->
+      <button class="home-nav-btn" onclick="resetFilters(); window.scrollTo({top:0, behavior:'smooth'});" type="button" aria-label="Home Page" title="Home Page">
+        <span class="home-nav-icon">&#127968;</span><span class="home-nav-label">Home</span>
+      </button>
+
       <!-- Desktop Search Bar with Voice Search -->
       <div class="header-search-wrap">
         <div class="search-input-box">
@@ -3522,7 +3536,7 @@ html.os-ios .category-quick-strip {
     <div class="store-status-strip">
       <div id="store-live-badge" class="store-status-badge" title="Store Timing: 8:30 AM – 9:30 PM">
         <span class="status-dot"></span>
-        <span id="store-live-text">Open · Closes 9:30 PM</span>
+        <span id="store-live-text"><span class="status-word status-word-open">OPEN</span><span class="status-detail status-detail-close"> · closes 9:30 pm</span></span>
       </div>
     </div>
 
@@ -3605,62 +3619,6 @@ html.os-ios .category-quick-strip {
 
       <!-- Contextual Brand Filters (Companies matching this category/subcategory ONLY) -->
       <div id="contextual-brand-strip" class="contextual-brand-strip no-sb"></div>
-    </div>
-  </section>
-
-  <!-- Hot Deals Section (Horizontal Scroller with Animated Borders) -->
-  <section id="deals-section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <h2 class="section-title">🔥 Hot Deals & Big Savings</h2>
-          <span class="section-subtitle">25%+ OFF</span>
-        </div>
-        <div class="scroll-nav-btns">
-          <button class="scroll-btn" onclick="scrollDeals(-1)" aria-label="Scroll left"><svg class="icon"><use href="#ic-chevron-left"/></svg></button>
-          <button class="scroll-btn" onclick="scrollDeals(1)" aria-label="Scroll right"><svg class="icon"><use href="#ic-chevron-right"/></svg></button>
-        </div>
-      </div>
-      <div id="deals-scroller" class="deals-scroller no-sb"></div>
-    </div>
-  </section>
-
-  <!-- Smart 1-Click Super Saver Combos -->
-  <section id="combos-section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <h2 class="section-title">✨ 1-Click Smart Grocery Combos</h2>
-          <span class="section-subtitle">Frequently Bought Together</span>
-        </div>
-      </div>
-      <div class="combos-grid" id="combos-container">
-        <!-- Rendered dynamically via JS -->
-      </div>
-    </div>
-  </section>
-
-  <!-- Shop by Category (Large Modern Tiles) -->
-  <section id="shop-by-cat-section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <h2 class="section-title">Shop by Category</h2>
-        </div>
-      </div>
-      <div id="categories-grid" class="categories-grid"></div>
-    </div>
-  </section>
-
-  <!-- Top Featured Brands Strip -->
-  <section id="featured-brands-section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <h2 class="section-title">Popular Brands & Companies</h2>
-        </div>
-      </div>
-      <div id="brands-scroller" class="brands-scroller no-sb"></div>
     </div>
   </section>
 
@@ -4517,12 +4475,50 @@ function triggerCelestialAnimation(targetTheme){
   }, 800);
 }
 
+/* Automatic theme rule:
+   - 6:30 PM – 5:30 AM: always dark, regardless of the visitor's device setting.
+   - 5:30 AM – 6:30 PM: follows the visitor's device/browser light-dark
+     preference (prefers-color-scheme).
+   A visitor who manually taps the theme toggle gets that choice for the
+   rest of their visit (a "np_theme_manual" flag suppresses auto re-checks);
+   a fresh visit on a new day/time always starts from the automatic rule
+   again rather than being stuck on an old manual choice forever. */
+function computeAutoTheme(){
+  var now = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes();
+  var nightStart = 18 * 60 + 30; // 6:30 PM
+  var nightEnd = 5 * 60 + 30;    // 5:30 AM
+  var isNight = (mins >= nightStart) || (mins < nightEnd);
+  if (isNight) return "dark";
+  var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return prefersDark ? "dark" : "light";
+}
+
 function initTheme(){
+  var manuallySet;
+  try { manuallySet = localStorage.getItem("np_theme_manual") === "1"; } catch(e) { manuallySet = false; }
   var saved;
   try { saved = localStorage.getItem("np_theme"); } catch(e) { saved = null; }
-  var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  var activeTheme = saved || (prefersDark ? "dark" : "light");
+  var activeTheme = (manuallySet && saved) ? saved : computeAutoTheme();
   setTheme(activeTheme, false);
+
+  // Keep non-manual visitors in sync live: re-check every minute so a tab
+  // left open across the 6:30pm/5:30am boundary flips automatically, and
+  // react immediately if the device's own light/dark setting changes.
+  function reapplyAutoThemeIfNoManualOverride(){
+    var isManual;
+    try { isManual = localStorage.getItem("np_theme_manual") === "1"; } catch(e) { isManual = false; }
+    if (isManual) return;
+    var next = computeAutoTheme();
+    var current = document.documentElement.getAttribute("data-theme") || "light";
+    if (next !== current) setTheme(next, true);
+  }
+  setInterval(reapplyAutoThemeIfNoManualOverride, 60000);
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", reapplyAutoThemeIfNoManualOverride);
+    else if (mq.addListener) mq.addListener(reapplyAutoThemeIfNoManualOverride);
+  }
 
   var toggleBtn = document.getElementById("theme-toggle");
   if (toggleBtn) {
@@ -4532,6 +4528,7 @@ function initTheme(){
       var current = document.documentElement.getAttribute("data-theme") || "light";
       var next = current === "dark" ? "light" : "dark";
       setTheme(next, true);
+      try { localStorage.setItem("np_theme_manual", "1"); } catch(e) {}
     });
   }
 }
@@ -4964,7 +4961,7 @@ function renderDealsScroller(){
         <div class="deal-badge">${disc}% OFF</div>
         <div class="deal-img-box">
           <div class="deal-img-mono">${getInitials(p.name)}</div>
-          <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
+          <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" onload="this.previousElementSibling.style.display='none';" />
         </div>
         <div class="deal-info">
           <div class="deal-brand">${p.brand !== 'Other' ? p.brand : 'NP Mart'}</div>
@@ -5071,6 +5068,12 @@ function modifyCart(id, delta, event){
   renderCatalogGrid(); updateCleanView();
   renderDealsScroller();
   if (state.isCartOpen) renderCartDrawer();
+  // Keep the wishlist drawer's own "+ Add" / qty-stepper buttons in sync
+  // too — without this, adding to cart (from the wishlist drawer itself,
+  // or from anywhere else while it's open) left it stuck showing "+ Add"
+  // even though the item was already in the cart.
+  var wlOverlay = document.getElementById("wishlist-drawer-overlay");
+  if (wlOverlay && wlOverlay.classList.contains("open")) updateWishlistDrawer();
   if (typeof refreshAiChefCards === "function") refreshAiChefCards();
 }
 
@@ -5119,22 +5122,32 @@ function fuzzyProductMatch(p, q){
 
 function getFilteredProducts(){
   const q = state.query.trim().toLowerCase();
-  let list = PRODUCTS.filter(p => {
-    if (state.category !== "all" && p.category !== state.category) return false;
-    if (state.sub !== "all" && p.sub !== state.sub) return false;
-    if (state.micro !== "all" && p.micro !== state.micro) return false;
-    if (state.brand !== "all" && p.brand !== state.brand) return false;
-    if (state.deal === "big_savings" && !(p.mrp && p.mrp > p.price && ((p.mrp - p.price) / p.mrp) >= 0.25)) return false;
-    if (state.deal === "under_50" && p.price > 50) return false;
-    if (state.deal === "in_stock" && p.stock <= 0) return false;
 
-    if (!q) return true;
-    const nameMatch = p.name.toLowerCase().includes(q);
-    const brandMatch = (p.brand || "").toLowerCase().includes(q);
-    if (nameMatch || brandMatch) return true;
-    if (q.split(/\s+/).filter(Boolean).every(term => p.name.toLowerCase().includes(term))) return true;
-    return fuzzyProductMatch(p, q);
-  });
+  // A typed search always searches the WHOLE catalog, ignoring any
+  // selected category/sub/micro/brand/deal chip — so searching while a
+  // category is active still returns every matching product store-wide,
+  // not just matches inside that category.
+  let list;
+  if (q) {
+    list = PRODUCTS.filter(p => {
+      const nameMatch = p.name.toLowerCase().includes(q);
+      const brandMatch = (p.brand || "").toLowerCase().includes(q);
+      if (nameMatch || brandMatch) return true;
+      if (q.split(/\s+/).filter(Boolean).every(term => p.name.toLowerCase().includes(term))) return true;
+      return fuzzyProductMatch(p, q);
+    });
+  } else {
+    list = PRODUCTS.filter(p => {
+      if (state.category !== "all" && p.category !== state.category) return false;
+      if (state.sub !== "all" && p.sub !== state.sub) return false;
+      if (state.micro !== "all" && p.micro !== state.micro) return false;
+      if (state.brand !== "all" && p.brand !== state.brand) return false;
+      if (state.deal === "big_savings" && !(p.mrp && p.mrp > p.price && ((p.mrp - p.price) / p.mrp) >= 0.25)) return false;
+      if (state.deal === "under_50" && p.price > 50) return false;
+      if (state.deal === "in_stock" && p.stock <= 0) return false;
+      return true;
+    });
+  }
 
   if (state.sort === "price_asc") list.sort((a,b) => a.price - b.price);
   else if (state.sort === "price_desc") list.sort((a,b) => b.price - a.price);
@@ -5161,11 +5174,14 @@ function renderCatalogGrid(){
   if (countEl) countEl.textContent = filtered.length.toLocaleString("en-IN") + " Items";
 
   if (titleEl) {
-    if (state.brand !== "all") titleEl.textContent = state.brand + " Products";
+    // Search now always searches the whole catalog (see getFilteredProducts),
+    // so a query takes priority over any category/sub/micro/brand chip —
+    // the title should reflect what's actually being shown.
+    if (state.query) titleEl.textContent = `Search: "${state.query}"`;
+    else if (state.brand !== "all") titleEl.textContent = state.brand + " Products";
     else if (state.micro !== "all") titleEl.textContent = getMicroMeta(state.micro).label;
     else if (state.sub !== "all") titleEl.textContent = getSubMeta(state.sub).label;
     else if (state.category !== "all") titleEl.textContent = getCategoryMeta(state.category).label;
-    else if (state.query) titleEl.textContent = `Search: "${state.query}"`;
     else titleEl.textContent = "Explore All Products";
   }
 
@@ -5193,7 +5209,7 @@ function renderCatalogGrid(){
         <div class="product-card animate-in ${isOos ? 'out-of-stock' : ''}">
           <div class="prod-img-wrap" onclick="openQuickView('${p.id}')" style="cursor:pointer;" title="Tap for Quick View">
             <div class="prod-monogram">${getInitials(p.name)}</div>
-            <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" />
+            <img src="/api/product-image?id=${p.id}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';" onload="this.previousElementSibling.style.display='none';" />
             ${isOos ? `<span class="out-of-stock-badge">Out of Stock</span>` : (disc >= 8 ? `<span class="prod-discount-tag">${disc}% OFF</span>` : '')}
           </div>
           <div class="prod-card-body">
@@ -5206,9 +5222,6 @@ function renderCatalogGrid(){
                 <span class="price-rate">${formatINR(p.price)}</span>
               </div>
               <div class="prod-footer-actions">
-                <button class="share-wa-btn" onclick="shareProductWhatsApp('${p.id}', event)" type="button" title="Share on WhatsApp" aria-label="Share on WhatsApp">
-                  <svg style="width:16px;height:16px;fill:currentColor;" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.122 1.522 5.857L0 24l6.335-1.652A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.82 0-3.546-.47-5.048-1.297l-.362-.214-3.756.98.998-3.648-.235-.374A9.934 9.934 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>
-                </button>
                 <button id="wish-btn-${p.id}" class="inline-wish-btn ${isWished ? 'active' : ''}" onclick="handleHeartClick('${p.id}', event, this)" type="button" aria-label="Wishlist">
                   ${heartSvg}
                 </button>
@@ -5372,20 +5385,13 @@ function renderDropdownResults(dd, query){
     return;
   }
   const q = query.toLowerCase().trim();
-  
-  // Scope search products based on active category/sub if filtered, or whole store
-  let scopeProducts = PRODUCTS;
-  if (state.category && state.category !== "all") {
-    scopeProducts = scopeProducts.filter(p => p.category === state.category);
-  }
-  if (state.sub && state.sub !== "all") {
-    scopeProducts = scopeProducts.filter(p => p.sub === state.sub);
-  }
-  if (state.micro && state.micro !== "all") {
-    scopeProducts = scopeProducts.filter(p => p.micro === state.micro);
-  }
 
-  let matchedProducts = scopeProducts.filter(p => 
+  // Search always looks across the WHOLE catalog, regardless of any
+  // selected category/sub/micro — typing a search should never be
+  // silently limited to whatever category chip happens to be active.
+  let scopeProducts = PRODUCTS;
+
+  let matchedProducts = scopeProducts.filter(p =>
     p.name.toLowerCase().includes(q) || 
     (p.brand && p.brand.toLowerCase().includes(q))
   ).slice(0, 7);
@@ -6090,41 +6096,10 @@ function closeAiChefModal(){
   if (o) o.classList.remove("open");
 }
 
-/* â”€â”€ AI CHEF: MULTI-MODE STATE (Recipe / Pantry / Meal Plan) â”€â”€ */
-var aiChefState = { mode: "recipe", servings: 4, diet: "veg" };
-
-function setAiChefMode(mode){
-  aiChefState.mode = mode;
-  document.querySelectorAll(".ai-chef-mode-tab").forEach(function(btn){
-    btn.classList.toggle("active", btn.getAttribute("data-mode") === mode);
-  });
-  var input = document.getElementById("ai-chef-user-input");
-  var suggRow = document.getElementById("ai-chef-suggestions-row");
-  if (mode === "recipe") {
-    if (input) input.placeholder = "e.g. I want to make Paneer Tikka...";
-    if (suggRow) suggRow.style.display = "flex";
-  } else if (mode === "pantry") {
-    if (input) input.placeholder = "e.g. I have potatoes, besan, curd...";
-    if (suggRow) suggRow.style.display = "none";
-  } else if (mode === "mealplan") {
-    if (input) input.placeholder = "e.g. 3 day simple veg meal plan...";
-    if (suggRow) suggRow.style.display = "none";
-  }
-}
-
-function setAiChefServings(n){
-  aiChefState.servings = n;
-  document.querySelectorAll(".ai-chef-chip[data-servings]").forEach(function(btn){
-    btn.classList.toggle("active", parseInt(btn.getAttribute("data-servings"), 10) === n);
-  });
-}
-
-function setAiChefDiet(diet){
-  aiChefState.diet = diet;
-  document.querySelectorAll(".ai-chef-chip[data-diet]").forEach(function(btn){
-    btn.classList.toggle("active", btn.getAttribute("data-diet") === diet);
-  });
-}
+/* â”€â”€ AI CHEF: fixed to Recipe mode (mode/servings/diet pickers removed
+   from the UI per request — kept as a plain internal default here since
+   buildAiChefPrompt() still reads it) â”€â”€ */
+var aiChefState = { mode: "recipe", servings: 4 };
 
 function startAiChefVoiceSearch(event){
   if (event && event.stopPropagation) event.stopPropagation();
@@ -6582,25 +6557,10 @@ async function fetchGeminiWithFallback(promptText){
 }
 
 function buildAiChefPrompt(userQuery){
+  // Mode/diet/servings pickers were removed from the UI — AI Chef always
+  // runs in plain Recipe mode now, with no diet restriction requested.
   var dietRule = "";
-  if (aiChefState.diet === "jain") {
-    dietRule = "5. JAIN DIET REQUIRED: Strictly NO onion, NO garlic, NO potato, and NO other root/underground vegetables in 'ingredients' or 'freshItems'. Suggest Jain-friendly substitutes (e.g. cabbage/capsicum instead of potato) where relevant.\n";
-  } else if (aiChefState.diet === "vegan") {
-    dietRule = "5. VEGAN DIET REQUIRED: Strictly NO dairy - no milk, paneer, curd, ghee, cheese, butter, or fresh cream, and NO honey. Suggest plant-based alternatives where relevant.\n";
-  } else if (aiChefState.diet === "rajasthani") {
-    dietRule = "5. RAJASTHANI STYLE PREFERRED: Favor authentic Rajasthani/Marwari cooking style - ghee-based, besan (gram flour) dishes, dry masalas, minimal tomato-onion gravy, traditional regional ingredients where appropriate.\n";
-  }
-
-  var modeTask;
-  if (aiChefState.mode === "pantry") {
-    modeTask = "MODE: PANTRY. The customer has told you what ingredients/items they ALREADY HAVE at home: \"" + userQuery + "\".\n" +
-      "Suggest ONE realistic Indian vegetarian dish they can make mostly using what they already have, then in 'ingredients'/'freshItems' list ONLY the ADDITIONAL items still needed to buy to complete that dish - do not repeat items they said they already have.\n";
-  } else if (aiChefState.mode === "mealplan") {
-    modeTask = "MODE: MEAL PLAN. The customer wants a meal plan: \"" + userQuery + "\" (cooking for " + aiChefState.servings + " people).\n" +
-      "Plan simple home-style vegetarian meals covering the request. In 'intro', briefly summarize the plan (e.g. \\\"Day 1: Dal Tadka + Rice. Day 2: Paneer Bhurji + Roti.\\\"). In 'ingredients' and 'freshItems', return the FULL CONSOLIDATED shopping list needed across the entire plan, deduplicated.\n";
-  } else {
-    modeTask = "MODE: RECIPE. The customer asks to cook/find ingredients for: \"" + userQuery + "\" (cooking for " + aiChefState.servings + " people).\n";
-  }
+  var modeTask = "MODE: RECIPE. The customer asks to cook/find ingredients for: \"" + userQuery + "\" (cooking for " + aiChefState.servings + " people).\n";
 
   return "You are an expert Indian grocery culinary AI assistant for NP Mart (New Pushpdant Kirana Store), a 100% pure vegetarian supermarket in Partapur, Rajasthan.\n" +
     modeTask + "\n" +
@@ -6919,22 +6879,6 @@ function renderOrderHistory(){
   }).join("");
 }
 
-/* ── 1. SHARE PRODUCT VIA WHATSAPP ── */
-function shareProductWhatsApp(productId, event){
-  if (event && event.stopPropagation) event.stopPropagation();
-  var p = PRODUCTS.find(function(x){ return x.id === productId; });
-  if (!p) return;
-
-  var currentUrl = window.location.href.split("#")[0];
-  var shareText = "🛒 Look what I found on NP Mart (New Pushpdant Kirana Store)!\n\n" +
-    "⭐ *" + p.name + "* (" + p.unit + ")\n" +
-    "💰 *Store Price: " + formatINR(p.price) + "*" + (p.mrp && p.mrp > p.price ? " (MRP: " + formatINR(p.mrp) + ")" : "") + "\n\n" +
-    "👉 Order online directly here: " + currentUrl;
-
-  var waUrl = "https://wa.me/?text=" + encodeURIComponent(shareText);
-  window.open(waUrl, "_blank");
-}
-
 /* ── 2. QUICK VIEW MODAL ── */
 function openQuickView(productId){
   var p = PRODUCTS.find(function(x){ return x.id === productId; });
@@ -6969,9 +6913,6 @@ function openQuickView(productId){
     '<div style="flex:1;">' +
       (isOos ? '<span class="out-of-stock-btn" style="display:block; text-align:center;">Currently Sold Out</span>' : renderCartControlHTML(p.id, qty)) +
     '</div>' +
-    '<button class="share-wa-btn" onclick="shareProductWhatsApp(\'' + p.id + '\', event)" type="button" style="width:40px; height:40px;" title="Share on WhatsApp">' +
-      '<svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.122 1.522 5.857L0 24l6.335-1.652A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.82 0-3.546-.47-5.048-1.297l-.362-.214-3.756.98.998-3.648-.235-.374A9.934 9.934 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>' +
-    '</button>' +
     '<button class="inline-wish-btn ' + (isWished ? 'active' : '') + '" onclick="handleHeartClick(\'' + p.id + '\', event, this); openQuickView(\'' + p.id + '\');" type="button" style="width:40px; height:40px;" title="Wishlist">' +
       '<svg style="width:20px;height:20px;" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
     '</button>' +
@@ -7077,22 +7018,37 @@ function updateStoreStatusBadge() {
   var isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   var dot = badge.querySelector(".status-dot");
 
+  // Two-tone badge: the big bold word always matches the CURRENT state
+  // (green OPEN / red CLOSED); the small detail phrase is colored by what
+  // it refers to, not by the current state — "closes ..." is always red
+  // (the upcoming stop), "opens ..." is always green (the upcoming go).
   if (isOpen) {
     if (dot) dot.classList.remove("closed");
     var minsUntilClose = closeMinutes - currentMinutes;
     var currentLang; try { currentLang = localStorage.getItem("npmart_lang") || "en"; } catch(e) { currentLang = "en"; }
-    if (minsUntilClose <= 45) {
-      textEl.textContent = currentLang === "hi" ? "🟢 खुला · " + minsUntilClose + " मिनट में बंद" : "🟢 Open · Closes in " + minsUntilClose + "m";
-    } else {
-      textEl.textContent = currentLang === "hi" ? "🟢 खुला · रात 9:30 बजे बंद" : "🟢 Open · Closes 9:30 PM";
-    }
+    var closeDetail = (minsUntilClose <= 45)
+      ? (currentLang === "hi" ? minsUntilClose + " मिनट में बंद" : "closes in " + minsUntilClose + "m")
+      : (currentLang === "hi" ? "रात 9:30 बजे बंद" : "closes 9:30 pm");
+    var openWord = currentLang === "hi" ? "खुला" : "OPEN";
+    textEl.innerHTML =
+      '<span class="status-word status-word-open">' + openWord + '</span>' +
+      '<span class="status-detail status-detail-close"> · ' + closeDetail + '</span>';
     badge.style.borderColor = "rgba(22, 163, 74, 0.4)";
   } else {
     if (dot) dot.classList.add("closed");
     var closedLang; try { closedLang = localStorage.getItem("npmart_lang") || "en"; } catch(e) { closedLang = "en"; }
-    textEl.textContent = closedLang === "hi" ? "🔴 बंद · सुबह 8:30 बजे खुलेगा" : "🔴 Closed · Opens 8:30 AM";
+    var openDetail = closedLang === "hi" ? "सुबह 8:30 बजे खुलेगा" : "opens 8:30 am";
+    var closedWord = closedLang === "hi" ? "बंद" : "CLOSED";
+    textEl.innerHTML =
+      '<span class="status-word status-word-closed">' + closedWord + '</span>' +
+      '<span class="status-detail status-detail-open"> · ' + openDetail + '</span>';
     badge.style.borderColor = "rgba(239, 68, 68, 0.4)";
   }
+
+  // Keep the hero "Live Slot" indicator's color in sync (it's a plain
+  // inline style in the HTML that otherwise never updates from green).
+  var heroSlot = document.getElementById("hero-live-slot-val");
+  if (heroSlot) heroSlot.style.color = isOpen ? "#16A34A" : "#DC2626";
 }
 setInterval(updateStoreStatusBadge, 30000);
 
@@ -7571,17 +7527,16 @@ function updateDeliverySlotIndicator() {
   // Store opens at 8:30 AM (510 mins) and closes at 9:30 PM (1290 mins)
   var isOpen = (curMins >= 510 && curMins < 1290);
 
-  var statusBadge = document.getElementById("store-live-text");
+  // NOTE: the store-live-text badge and its dot are owned exclusively by
+  // updateStoreStatusBadge() — this function used to also overwrite them
+  // with a plainer, uncolored version, which fought with that function
+  // every 30-60s and made Open/Closed flicker between two different
+  // looks. Only the hero "Live Slot" line (richer ETA message) is set here.
   var heroSlot = document.getElementById("hero-live-slot-val");
-  var dot = document.querySelector("#store-live-badge .status-dot");
 
   if (isOpen) {
-    if (dot) dot.style.background = "#22C55E";
-    if (statusBadge) statusBadge.textContent = "Open · Closes 9:30 PM";
     if (heroSlot) heroSlot.textContent = "🟢 Open (30-45 Mins Delivery)";
   } else {
-    if (dot) dot.style.background = "#EF4444";
-    if (statusBadge) statusBadge.textContent = "Closed · Opens 8:30 AM";
     if (heroSlot) heroSlot.textContent = "🌙 Opens Tomorrow 8:30 AM";
   }
 }
@@ -7720,19 +7675,25 @@ function openReceiptModal() {
     '<div style="font-size:16px; font-weight:800; letter-spacing:1px;">NP MART</div>' +
     '<div style="font-size:11px; font-weight:600;">NEW PUSHPDANT KIRANA STORE</div>' +
     '<div style="font-size:10px; color:#4B5563;">Jawahar Colony Tehsil Road, Partapur, RJ 327022</div>' +
-    '<div style="font-size:10px; color:#4B5563;">Ph: +91 98299 31779 &bull; 100% Pure Veg</div>' +
+    '<div style="font-size:10px; color:#4B5563;">Ph: +91 98299 31779</div>' +
     '<div style="font-size:10px; margin-top:4px;">Date: ' + dateStr + '</div>' +
   '</div>';
 
-  html += '<div style="font-weight:700; font-size:11px; margin-bottom:6px; display:flex; justify-content:space-between;">' +
-    '<span>ITEM</span><span>QTY &times; RATE = AMT</span>' +
+  html += '<div style="font-weight:700; font-size:10.5px; margin-bottom:6px; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px;">' +
+    'ITEMS' +
   '</div>';
 
   html += items.map(function(it){
     var lineTotal = it.p.price * it.qty;
-    return '<div class="receipt-item-row">' +
-      '<div style="flex:1; max-width:60%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtmlText(it.p.name) + '</div>' +
-      '<div>' + it.qty + ' &times; ' + formatINR(it.p.price) + ' = ' + formatINR(lineTotal) + '</div>' +
+    var itemMrp = it.p.mrp && it.p.mrp > it.p.price ? it.p.mrp : it.p.price;
+    // Two-line layout so long product names never clip the MRP off —
+    // name on its own line, MRP + qty/rate/amount on the line below.
+    return '<div class="receipt-item-row" style="flex-direction:column; align-items:stretch; gap:2px;">' +
+      '<div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtmlText(it.p.name) + '</div>' +
+      '<div style="display:flex; justify-content:space-between; font-size:10.5px; color:#6B7280;">' +
+        '<span>MRP ' + formatINR(itemMrp) + '</span>' +
+        '<span>' + it.qty + ' &times; ' + formatINR(it.p.price) + ' = ' + formatINR(lineTotal) + '</span>' +
+      '</div>' +
     '</div>';
   }).join('');
 
@@ -7750,6 +7711,10 @@ function openReceiptModal() {
 
   html += '<div style="text-align:center; margin-top:14px; font-size:10px; color:#6B7280; border-top:1px dashed #9CA3AF; padding-top:8px;">' +
     'Thank you for shopping local with NP Mart!<br/>Doorstep Delivery across Garhi, Partapur &amp; Ashapura' +
+  '</div>';
+
+  html += '<div style="text-align:center; margin-top:10px; padding:8px 10px; background:#F3F4F6; border-radius:6px; font-size:9.5px; line-height:1.5; color:#4B5563;">' +
+    '<strong>Note:</strong> This is a provisional order summary for your reference only, not a formal tax invoice. Your official bill will be provided by our delivery staff at the time of delivery.' +
   '</div>';
 
   content.innerHTML = html;
@@ -7928,33 +7893,10 @@ setTimeout(function(){
         <div class="ai-chef-avatar-badge">&#129489;&#8205;&#127859;</div>
         <div>
           <div class="ai-chef-title" style="font-size:16.5px; font-weight:800;">NP Mart AI Chef &amp; Finder</div>
-          <div class="ai-chef-subtitle" style="font-size:12px; opacity:0.95;">100% Pure Veg &bull; 15,808 In-Stock Items</div>
+          <div class="ai-chef-subtitle" style="font-size:12px; opacity:0.95;">15,808 In-Stock Items</div>
         </div>
       </div>
       <button class="ai-chef-close-btn" onclick="closeAiChefModal()" type="button" style="background:rgba(255,255,255,0.22); border:none; color:#FFF; width:34px; height:34px; border-radius:50%; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">&#10005;</button>
-    </div>
-
-    <div class="ai-chef-mode-tabs" id="ai-chef-mode-tabs">
-      <button class="ai-chef-mode-tab active" data-mode="recipe" onclick="setAiChefMode('recipe')" type="button">&#127858; Recipe</button>
-      <button class="ai-chef-mode-tab" data-mode="pantry" onclick="setAiChefMode('pantry')" type="button">&#129380; Pantry</button>
-      <button class="ai-chef-mode-tab" data-mode="mealplan" onclick="setAiChefMode('mealplan')" type="button">&#128197; Meal Plan</button>
-    </div>
-
-    <div class="ai-chef-controls-row">
-      <div class="ai-chef-control-group">
-        <span class="ai-chef-control-label">Servings</span>
-        <button class="ai-chef-chip" data-servings="2" onclick="setAiChefServings(2)" type="button">2</button>
-        <button class="ai-chef-chip active" data-servings="4" onclick="setAiChefServings(4)" type="button">4</button>
-        <button class="ai-chef-chip" data-servings="6" onclick="setAiChefServings(6)" type="button">6</button>
-        <button class="ai-chef-chip" data-servings="8" onclick="setAiChefServings(8)" type="button">8</button>
-      </div>
-      <div class="ai-chef-control-group">
-        <span class="ai-chef-control-label">Diet</span>
-        <button class="ai-chef-chip active" data-diet="veg" onclick="setAiChefDiet('veg')" type="button">Veg</button>
-        <button class="ai-chef-chip" data-diet="jain" onclick="setAiChefDiet('jain')" type="button">Jain</button>
-        <button class="ai-chef-chip" data-diet="vegan" onclick="setAiChefDiet('vegan')" type="button">Vegan</button>
-        <button class="ai-chef-chip" data-diet="rajasthani" onclick="setAiChefDiet('rajasthani')" type="button">Rajasthani</button>
-      </div>
     </div>
 
     <div id="ai-chef-messages" class="ai-chef-chat-body">
@@ -7964,12 +7906,8 @@ setTimeout(function(){
       </div>
     </div>
 
-    <div class="ai-suggestions-row" id="ai-chef-suggestions-row">
-      <button class="ai-sugg-pill" onclick="askAiChefPreset('I want to make Pav Bhaji')" type="button">&#127858; Pav Bhaji</button>
-      <button class="ai-sugg-pill" onclick="askAiChefPreset('Ingredients for Paneer Butter Masala')" type="button">&#129472; Paneer Butter Masala</button>
-      <button class="ai-sugg-pill" onclick="askAiChefPreset('Ingredients for Dal Tadka')" type="button">&#127858; Dal Tadka</button>
-      <button class="ai-sugg-pill" onclick="askAiChefPreset('Masala Chai ingredients')" type="button">&#9749; Masala Chai</button>
-      <button class="ai-sugg-pill" onclick="askAiChefPreset('Pooja Samagri list')" type="button">&#129532; Pooja Samagri</button>
+    <div class="ai-chef-disclaimer" id="ai-chef-disclaimer">
+      &#9888;&#65039; AI Chef is an AI assistant and can occasionally make mistakes — please double-check ingredients and quantities before ordering.
     </div>
 
     <form class="ai-chef-input-bar" onsubmit="handleAiChefSubmit(event)">
