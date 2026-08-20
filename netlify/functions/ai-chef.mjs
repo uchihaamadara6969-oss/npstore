@@ -85,10 +85,9 @@ const MISTRAL_MODELS = [
 
 /* Gemini models on the generateContent endpoint. */
 const GEMINI_MODELS = [
-  "gemini-3.6-flash",
-  "gemini-3.0-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash"
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash"
 ];
 
 function timeoutSignal(ms) {
@@ -104,7 +103,8 @@ async function callOpenAiCompatible(url, apiKey, prompt, model, maxTokens, extra
       {
         model,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.2
+        temperature: 0.2,
+        ...(maxTokens ? {} : { response_format: { type: "json_object" } })
       },
       extraBody || {}
     );
@@ -244,12 +244,17 @@ async function callGemini(apiKey, prompt, model, maxTokens) {
 function buildProviders(siteUrl) {
   return [
     {
-      id: "openrouter",
-      keys: () => [process.env.OPENROUTER_API_KEY].filter(Boolean),
-      models: OPENROUTER_MODELS,
-      call: (key, prompt, model, maxTokens) => callOpenRouter(key, prompt, model, maxTokens, siteUrl),
-      // A bad key fails identically on every model — stop trying this
-      // key's remaining models once we see an auth-shaped rejection.
+      id: "gemini",
+      keys: () => [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean),
+      models: GEMINI_MODELS,
+      call: callGemini,
+      breakOn: (status) => status === 400 || status === 401 || status === 403
+    },
+    {
+      id: "mistral",
+      keys: () => [process.env.MISTRAL_API_KEY].filter(Boolean),
+      models: MISTRAL_MODELS,
+      call: callMistral,
       breakOn: (status) => status === 401 || status === 403
     },
     {
@@ -260,18 +265,11 @@ function buildProviders(siteUrl) {
       breakOn: (status) => status === 401 || status === 403
     },
     {
-      id: "mistral",
-      keys: () => [process.env.MISTRAL_API_KEY].filter(Boolean),
-      models: MISTRAL_MODELS,
-      call: callMistral,
+      id: "openrouter",
+      keys: () => [process.env.OPENROUTER_API_KEY].filter(Boolean),
+      models: OPENROUTER_MODELS,
+      call: (key, prompt, model, maxTokens) => callOpenRouter(key, prompt, model, maxTokens, siteUrl),
       breakOn: (status) => status === 401 || status === 403
-    },
-    {
-      id: "gemini",
-      keys: () => [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean),
-      models: GEMINI_MODELS,
-      call: callGemini,
-      breakOn: (status) => status === 400 || status === 401 || status === 403
     }
   ];
 }
