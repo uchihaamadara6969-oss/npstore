@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
@@ -6650,30 +6650,36 @@ async function handleAiChefSubmit(e){
        customer is told plainly rather than shown a canned recipe. */
     var rawText = await fetchGeminiWithFallback(promptText);
     if (rawText) {
-      /* Strip a Markdown code fence if the model added one, then take
-         the outermost JSON object. */
       var cleaned = String(rawText).replace(/```json/gi, "").replace(/```/g, "").trim();
-      var jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[0]);
-        } catch(parseErr) {
+      // 1. Direct JSON parse
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch(e) {
+        // 2. Regex match outermost { ... }
+        var startIdx = cleaned.indexOf("{");
+        var endIdx = cleaned.lastIndexOf("}");
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+          var jsonSub = cleaned.substring(startIdx, endIdx + 1);
+          try {
+            parsed = JSON.parse(jsonSub);
+          } catch(parseErr) {
+            npAiChefLastError = {
+              httpStatus: 200,
+              error: "json_parse_failed",
+              message: String(parseErr && parseErr.message || parseErr),
+              sample: cleaned.slice(0, 300)
+            };
+            if (AI_CHEF_DEBUG) console.error("[AI Chef] model returned unparseable JSON:", npAiChefLastError);
+          }
+        } else {
           npAiChefLastError = {
             httpStatus: 200,
-            error: "json_parse_failed",
-            message: String(parseErr && parseErr.message || parseErr),
+            error: "no_json_in_response",
+            message: "Model replied without a JSON object.",
             sample: cleaned.slice(0, 300)
           };
-          if (AI_CHEF_DEBUG) console.error("[AI Chef] model returned unparseable JSON:", npAiChefLastError);
+          if (AI_CHEF_DEBUG) console.error("[AI Chef] no JSON found in model reply:", npAiChefLastError);
         }
-      } else {
-        npAiChefLastError = {
-          httpStatus: 200,
-          error: "no_json_in_response",
-          message: "Model replied without a JSON object.",
-          sample: cleaned.slice(0, 300)
-        };
-        if (AI_CHEF_DEBUG) console.error("[AI Chef] no JSON found in model reply:", npAiChefLastError);
       }
     }
 
