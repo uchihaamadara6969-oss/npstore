@@ -513,6 +513,28 @@ a { text-decoration: none; color: inherit; }
   margin-bottom: 14px;
   animation: floatParticles 4s ease-in-out infinite;
 }
+.hero-info-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 99px;
+  background: #FBBF24;
+  color: #451A03;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6);
+  animation: heroInfoPulse 2.2s ease-out infinite;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.hero-info-btn:hover { transform: scale(1.1); }
+@keyframes heroInfoPulse {
+  0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); }
+  70% { box-shadow: 0 0 0 9px rgba(251, 191, 36, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+}
 .hero-title {
   font-size: clamp(1.75rem, 4vw, 2.75rem);
   font-weight: 800;
@@ -1338,6 +1360,7 @@ body.cart-open #floating-mini-cart-bar {
   opacity: 0 !important;
 }
 body.cart-open { overflow: hidden; }
+body.ai-chef-open { overflow: hidden; touch-action: none; }
 #cart-drawer-overlay.open { display: block; }
 .cart-backdrop {
   position: absolute;
@@ -2826,31 +2849,66 @@ body.cart-open { overflow: hidden; }
   display: flex !important;
 }
 
-/* ── VOICE SEARCH BUTTON & ANIMATION ── */
+/* ── VOICE SEARCH BUTTON & ANIMATION (WhatsApp-style circle) ── */
 .voice-search-btn {
   background: none;
   border: none;
-  font-size: 16px;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  transition: all 0.2s ease;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
-.voice-search-btn:hover {
-  color: var(--accent-green);
-  transform: scale(1.15);
+.voice-search-btn:hover { transform: scale(1.08); }
+.voice-btn-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  position: relative;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
-.voice-search-btn.listening {
-  color: #EF4444;
-  animation: micPulse 1.2s infinite alternate;
+.voice-mic-icon { width: 15px; height: 15px; color: #54656F; }
+.voice-wave-bars {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5px;
+  height: 15px;
 }
-@keyframes micPulse {
-  0% { transform: scale(1); filter: drop-shadow(0 0 2px #EF4444); }
-  100% { transform: scale(1.3); filter: drop-shadow(0 0 8px #EF4444); }
+.voice-wave-bars span {
+  width: 2.5px;
+  border-radius: 2px;
+  background: #22C55E;
+  display: inline-block;
+  animation: voiceWaveBar 0.9s ease-in-out infinite;
+  transform-origin: center;
+}
+.voice-wave-bars span:nth-child(1) { height: 6px;  animation-delay: 0s; }
+.voice-wave-bars span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
+.voice-wave-bars span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+.voice-wave-bars span:nth-child(4) { height: 15px; animation-delay: 0.45s; }
+@keyframes voiceWaveBar {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+.voice-search-btn.listening .voice-btn-circle {
+  background: #DCF8C6;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.18);
+  animation: voiceListenPulse 1.4s ease-out infinite;
+}
+.voice-search-btn.listening .voice-mic-icon { display: none; }
+.voice-search-btn.listening .voice-wave-bars { display: flex; }
+@keyframes voiceListenPulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
 /* ── QUICK RATION ORDER & PASTE-A-LIST MODAL ── */
@@ -3453,6 +3511,11 @@ html.os-ios .category-quick-strip {
 <symbol id="ic-chevron-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
 <symbol id="ic-chevron-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
 <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 22s7-7.58 7-12.5A7 7 0 0 0 5 9.5C5 14.42 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+<symbol id="ic-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="ic-fb" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M17 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h5v-7H9.5v-3H12V9c0-2.1 1.28-3.25 3.15-3.25.9 0 1.85.16 1.85.16v2.5h-1.28c-1 0-1.35.63-1.35 1.28V11h2.5l-.4 3H14.5v7H17a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4z"/></symbol>
+<symbol id="ic-ig" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-mic" viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></symbol>
 </defs>
 </svg>
 
@@ -3495,7 +3558,12 @@ html.os-ios .category-quick-strip {
         <div class="search-input-box">
           <svg class="icon" style="color:var(--text-faint);"><use href="#ic-search"/></svg>
           <input id="desktop-search-input" type="search" placeholder="Search 15,000+ items (Atta, Amul, Maggi, Tea, Oil...)" autocomplete="off" />
-          <button class="voice-search-btn" onclick="startVoiceSearch(event)" type="button" title="Voice Search (बोलकर खोजें)">🎙️</button>
+          <button class="voice-search-btn" onclick="startVoiceSearch(event)" type="button" title="Voice Search (बोलकर खोजें)">
+              <span class="voice-btn-circle">
+                <svg class="icon voice-mic-icon"><use href="#ic-mic"/></svg>
+                <span class="voice-wave-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+              </span>
+            </button>
           <button id="desktop-clear-btn" class="search-clear-btn" aria-label="Clear"><svg class="icon"><use href="#ic-x"/></svg></button>
         </div>
         <div id="desktop-search-dropdown" class="search-dropdown-menu"></div>
@@ -3545,7 +3613,12 @@ html.os-ios .category-quick-strip {
       <div class="search-input-box">
         <svg class="icon" style="color:var(--text-faint);"><use href="#ic-search"/></svg>
         <input id="mobile-search-input" type="search" placeholder="Search 15,000+ items..." autocomplete="off" />
-        <button class="voice-search-btn" onclick="startVoiceSearch(event)" type="button" title="Voice Search (बोलकर खोजें)">🎙️</button>
+        <button class="voice-search-btn" onclick="startVoiceSearch(event)" type="button" title="Voice Search (बोलकर खोजें)">
+              <span class="voice-btn-circle">
+                <svg class="icon voice-mic-icon"><use href="#ic-mic"/></svg>
+                <span class="voice-wave-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+              </span>
+            </button>
         <button id="mobile-clear-btn" class="search-clear-btn" aria-label="Clear"><svg class="icon"><use href="#ic-x"/></svg></button>
       </div>
       <div id="mobile-search-dropdown" class="search-dropdown-menu"></div>
@@ -3560,8 +3633,13 @@ html.os-ios .category-quick-strip {
     <div class="container">
       <div class="hero-card">
         <div class="hero-left-content">
-          <div class="hero-pill-badge">
-            <svg class="icon"><use href="#ic-bolt"/></svg> Superfast Local Delivery
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="hero-pill-badge">
+              <svg class="icon"><use href="#ic-bolt"/></svg> Superfast Local Delivery
+            </div>
+            <button class="hero-info-btn" onclick="openStoreInfoModal();" type="button" aria-label="Store Info & Location" title="Store Info & Location">
+              &#8505;&#65039; Store Info
+            </button>
           </div>
           <h1 class="hero-title">Your Neighbourhood.<br /><span>Delivered in Minutes.</span></h1>
           <p class="hero-subtitle">Explore 15,000+ authentic groceries, snacks & essentials from New Pushpdant Kirana Store, Partapur at verified retail prices.</p>
@@ -3571,6 +3649,9 @@ html.os-ios .category-quick-strip {
             </button>
             <button class="hero-cta-btn" onclick="openQuickRationModal()" style="background:var(--surface-2); color:var(--text); border:1.5px solid var(--border);" type="button">
               &#128221; Paste Ration List
+            </button>
+            <button class="hero-cta-btn" onclick="openShoppingListsDrawer();" style="background:var(--surface-2); color:var(--text); border:1.5px solid var(--border);" type="button">
+              &#128203; My Shopping Lists
             </button>
           </div>
         </div>
@@ -5814,8 +5895,11 @@ async function loadProductsFromApi(){
 document.addEventListener("DOMContentLoaded", async () => {
   loadNpWishlist();
 
-  /* Search enter key auto-scroll */
-  var allSearchInputs = document.querySelectorAll('input[type="text"], input[type="search"]');
+  /* Search enter key auto-scroll — only the two real search boxes
+     (type="search"). Other text inputs (AI Chef chat, shopping-list
+     name, etc.) have their own Enter-key handling and must NOT be
+     hijacked here, or Enter blurs/scrolls instead of submitting them. */
+  var allSearchInputs = document.querySelectorAll('input[type="search"]');
   allSearchInputs.forEach(function(inp){
     inp.addEventListener("keydown", function(e){
       if(e.key==="Enter"||e.keyCode===13){ e.preventDefault(); inp.blur(); setTimeout(scrollToCatalog, 100); }
@@ -6088,12 +6172,17 @@ function triggerFreeDeliveryCelebration(){
 function openAiChefModal(){
   var o = document.getElementById("ai-chef-modal-overlay");
   if (o) o.classList.add("open");
+  // Lock the page behind the modal so it doesn't visibly scroll/move
+  // while the AI Chef window is open — the page keeps its state, it
+  // just can't be seen moving behind the backdrop.
+  document.body.classList.add("ai-chef-open");
   var input = document.getElementById("ai-chef-user-input");
   if (input) setTimeout(function(){ input.focus(); }, 200);
 }
 function closeAiChefModal(){
   var o = document.getElementById("ai-chef-modal-overlay");
   if (o) o.classList.remove("open");
+  document.body.classList.remove("ai-chef-open");
 }
 
 /* â”€â”€ AI CHEF: fixed to Recipe mode (mode/servings/diet pickers removed
@@ -6470,6 +6559,20 @@ function aiChefSelectProduct(id, name){
   scrollToCatalog();
 }
 
+/* Tapping a generic item-name pill (e.g. "Atta") in the "Available at
+   NP Mart" overview row: leaves the chat and opens the full catalog
+   search for that name, same as tapping a specific product name does. */
+function aiChefSearchByName(name){
+  closeAiChefModal();
+  var searchInput = document.getElementById("catalog-search-input") || document.querySelector('input[type="search"]') || document.querySelector('input[type="text"]');
+  if (searchInput) {
+    searchInput.value = name;
+    state.query = name;
+  }
+  renderCatalogGrid(); updateCleanView();
+  scrollToCatalog();
+}
+
 function aiChefAddAllToCart(productIdsJson, btnEl){
   try {
     var ids = JSON.parse(decodeURIComponent(productIdsJson));
@@ -6563,6 +6666,7 @@ function buildAiChefPrompt(userQuery){
   var modeTask = "MODE: RECIPE. The customer asks to cook/find ingredients for: \"" + userQuery + "\" (cooking for " + aiChefState.servings + " people).\n";
 
   return "You are an expert Indian grocery culinary AI assistant for NP Mart (New Pushpdant Kirana Store), a 100% pure vegetarian supermarket in Partapur, Rajasthan.\n" +
+    "LANGUAGE: Detect the language/script the customer used in their message (English, Hindi/Devanagari, or Hinglish/Romanized Hindi like \"gehu ka halwa banana hai\"). Write the 'dish' and 'intro' fields back in that SAME language/style, naturally and warmly — if they wrote in Hinglish, reply in friendly Hinglish; if Devanagari Hindi, reply in Hindi; if English, reply in English. Regardless of the customer's language, the 'ingredients' and 'freshItems' arrays must ALWAYS use the exact canonical English item names from the inventory list below, since those are matched directly against store stock.\n" +
     modeTask + "\n" +
     "NP MART STORE INVENTORY — USE ONLY THESE EXACT CANONICAL NAMES for 'ingredients'. Each line below is ONE distinct product — never substitute one for another:\n" +
     "- BAKERY: Pav Bread, Sandwich Bread, Pizza Base, Burger Bun, Kulcha, Vada Pav\n" +
@@ -6690,6 +6794,47 @@ async function handleAiChefSubmit(e){
       if (allFreshItems.indexOf(m) === -1) allFreshItems.push(m);
     });
 
+    // 1. Combined "everything you'll need" overview — every ingredient
+    //    (packaged + fresh) in one glance, before any list breakdown.
+    var allNeededNames = matchedProducts.map(function(item){ return item.query; }).concat(missingItems);
+    freshItemsFromAI.forEach(function(f){ if (allNeededNames.indexOf(f) === -1) allNeededNames.push(f); });
+    var seenNeeded = {};
+    allNeededNames = allNeededNames.filter(function(n){
+      var k = n.toLowerCase();
+      if (seenNeeded[k]) return false;
+      seenNeeded[k] = true;
+      return true;
+    });
+
+    var overviewHtml = "";
+    if (allNeededNames.length > 0) {
+      overviewHtml = '<div style="margin-bottom:10px; padding:10px 12px; background:var(--surface-2); border-radius:12px; border:1px solid var(--border);">' +
+        '<div style="font-weight:700; margin-bottom:5px; color:var(--text); font-size:12px;">&#129530; Everything You\'ll Need:</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:4px;">' +
+        allNeededNames.map(function(item){
+          return '<span style="background:var(--surface); border:1px solid var(--border); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; color:var(--text);">' + item + '</span>';
+        }).join('') +
+        '</div>' +
+      '</div>';
+    }
+
+    // 2. Generic NP Mart item-name pills (tap → opens full catalog
+    //    search for that name) — separate from the specific priced
+    //    product cards further down.
+    var npMartNamesHtml = "";
+    if (matchedProducts.length > 0) {
+      npMartNamesHtml = '<div style="margin-bottom:10px;">' +
+        '<div style="font-size:12px; font-weight:700; color:var(--accent-green); margin-bottom:6px;">&#127963; Available at NP Mart <span style="font-weight:500; color:var(--text-muted);">(tap to browse)</span>:</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:5px;">' +
+        matchedProducts.map(function(item){
+          return '<button onclick="aiChefSearchByName(\'' + item.query.replace(/'/g, "\\'") + '\')" type="button" style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:var(--accent-green); padding:5px 11px; border-radius:20px; font-size:11.5px; font-weight:700; white-space:nowrap; cursor:pointer;">' +
+            item.query + ' &#8250;' +
+          '</button>';
+        }).join('') +
+        '</div>' +
+      '</div>';
+    }
+
     var freshHtml = "";
     if (allFreshItems.length > 0) {
       freshHtml = '<div style="margin-top:10px; padding:10px 12px; background:linear-gradient(135deg, rgba(34,197,94,0.08), rgba(245,158,11,0.08)); border-radius:12px; font-size:12px; color:var(--text); border: 1px solid rgba(34,197,94,0.15);">' +
@@ -6703,11 +6848,13 @@ async function handleAiChefSubmit(e){
       '</div>';
     }
 
-    var storeLabel = matchedProducts.length > 0 ? '<div style="font-size:12px; font-weight:700; color:var(--accent-green); margin-bottom:6px;">&#127963; In Stock at NP Mart:</div>' : '<div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">No packaged matching products found in store stock.</div>';
+    var storeLabel = matchedProducts.length > 0 ? '<div style="font-size:12px; font-weight:700; color:var(--accent-green); margin-bottom:6px;">&#128722; Top Picks — Add to Cart:</div>' : '<div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">No packaged matching products found in store stock.</div>';
 
     loadingBubble.innerHTML = '<div style="font-family: inherit;">' +
       '<div style="font-size:15px; font-weight:800; color:var(--text); margin-bottom:4px;">&#127858; ' + dishName + '</div>' +
       '<p style="margin: 0 0 10px 0; font-size:13px; color:var(--text-muted); line-height:1.4;">' + introText + '</p>' +
+      overviewHtml +
+      npMartNamesHtml +
       storeLabel +
       cardsHtml +
       freshHtml +
@@ -7683,16 +7830,27 @@ function openReceiptModal() {
     'ITEMS' +
   '</div>';
 
+  // Column header row — labels the 4-column value grid used per item below.
+  html += '<div class="receipt-col-hdr" style="display:grid; grid-template-columns:1fr 1fr 0.6fr 1fr; gap:4px; font-size:9px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:.03em; padding-bottom:3px; margin-bottom:4px; border-bottom:1px solid #F3F4F6;">' +
+    '<span>MRP</span>' +
+    '<span style="text-align:right;">NP Rate</span>' +
+    '<span style="text-align:right;">Qty</span>' +
+    '<span style="text-align:right;">Amount</span>' +
+  '</div>';
+
   html += items.map(function(it){
     var lineTotal = it.p.price * it.qty;
     var itemMrp = it.p.mrp && it.p.mrp > it.p.price ? it.p.mrp : it.p.price;
-    // Two-line layout so long product names never clip the MRP off —
-    // name on its own line, MRP + qty/rate/amount on the line below.
-    return '<div class="receipt-item-row" style="flex-direction:column; align-items:stretch; gap:2px;">' +
+    // Two-line layout so long product names never clip the columns off —
+    // name on its own line, then MRP / Rate / Qty / Amount as an aligned
+    // 4-column grid matching the header row above.
+    return '<div class="receipt-item-row" style="flex-direction:column; align-items:stretch; gap:3px;">' +
       '<div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtmlText(it.p.name) + '</div>' +
-      '<div style="display:flex; justify-content:space-between; font-size:10.5px; color:#6B7280;">' +
-        '<span>MRP ' + formatINR(itemMrp) + '</span>' +
-        '<span>' + it.qty + ' &times; ' + formatINR(it.p.price) + ' = ' + formatINR(lineTotal) + '</span>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr 0.6fr 1fr; gap:4px; font-size:10.5px; color:#374151;">' +
+        '<span>' + formatINR(itemMrp) + '</span>' +
+        '<span style="text-align:right;">' + formatINR(it.p.price) + '</span>' +
+        '<span style="text-align:right;">' + it.qty + '</span>' +
+        '<span style="text-align:right; font-weight:700;">' + formatINR(lineTotal) + '</span>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -7778,18 +7936,18 @@ setTimeout(function(){
       <div class="sim-map-wrap">
         <iframe id="store-map-iframe" title="NP Mart Location Map" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" data-src="https://maps.google.com/maps?q=New%20Pushpdant%20Kirana%20Store,%20Jawahar%20Colony%20Tehsil%20Road,%20Partapur,%20Rajasthan%20327022&t=&z=16&ie=UTF8&iwloc=&output=embed"></iframe>
       </div>
-      <div class="sim-actions-row" style="margin-top:10px;"><a href="https://maps.app.goo.gl/VKKtxqn9ripZV44B6" target="_blank" rel="noopener" class="sim-btn" style="background:#EA4335; color:#FFF;">&#128205; Open in Google Maps App</a></div>
+      <div class="sim-actions-row" style="margin-top:10px;"><a href="https://maps.app.goo.gl/VKKtxqn9ripZV44B6" target="_blank" rel="noopener" class="sim-btn" style="background:#EA4335; color:#FFF;"><svg class="icon"><use href="#ic-pin"/></svg> Open in Google Maps App</a></div>
     </div>
     <div class="sim-card"><span class="sim-label">Customer Care &amp; Ordering</span><span class="sim-val">+91 98299 31779</span>
       <div class="sim-actions-row">
-        <a href="https://wa.me/919829931779" target="_blank" rel="noopener" class="sim-btn" style="background:#25D366; color:#FFF;">&#128242; WhatsApp</a>
-        <a href="tel:+919829931779" class="sim-btn" style="background:#3B82F6; color:#FFF;">&#128222; Call Store</a>
+        <a href="https://wa.me/919829931779" target="_blank" rel="noopener" class="sim-btn" style="background:#25D366; color:#FFF;"><svg class="icon"><use href="#ic-wa"/></svg> WhatsApp</a>
+        <a href="tel:+919829931779" class="sim-btn" style="background:#3B82F6; color:#FFF;"><svg class="icon"><use href="#ic-phone"/></svg> Call Store</a>
       </div>
     </div>
     <div class="sim-card"><span class="sim-label">Official Social Media</span>
       <div class="sim-actions-row">
-        <a href="https://www.instagram.com/npmart__?igsh=MTIya3JyNmVmcmZuZw==" target="_blank" rel="noopener" class="sim-btn" style="background:#E1306C; color:#FFF;">&#128247; @npmart__</a>
-        <a href="https://www.facebook.com/share/1cHLZ9E1Tu/" target="_blank" rel="noopener" class="sim-btn" style="background:#1877F2; color:#FFF;">&#128077; npmart</a>
+        <a href="https://www.instagram.com/npmart__?igsh=MTIya3JyNmVmcmZuZw==" target="_blank" rel="noopener" class="sim-btn" style="background:#E1306C; color:#FFF;"><svg class="icon"><use href="#ic-ig"/></svg> @npmart__</a>
+        <a href="https://www.facebook.com/share/1cHLZ9E1Tu/" target="_blank" rel="noopener" class="sim-btn" style="background:#1877F2; color:#FFF;"><svg class="icon"><use href="#ic-fb"/></svg> npmart</a>
       </div>
     </div>
     <div class="sim-card"><span class="sim-label">Government Licenses</span><span class="sim-val" style="font-family:'IBM Plex Mono',monospace; font-size:12px;">FSSAI LIC NO.: 12218011333225<br/>GSTIN: 08AIWPD4670K1ZO</span></div>
@@ -7912,7 +8070,12 @@ setTimeout(function(){
 
     <form class="ai-chef-input-bar" onsubmit="handleAiChefSubmit(event)">
       <input id="ai-chef-user-input" class="ai-chef-input" type="text" placeholder="e.g. I want to make Paneer Tikka..." autocomplete="off" />
-      <button class="voice-search-btn" onclick="startAiChefVoiceSearch(event)" type="button" title="Voice Search (बोलकर बताएं)">&#127908;&#65039;</button>
+      <button class="voice-search-btn" onclick="startAiChefVoiceSearch(event)" type="button" title="Voice Search (बोलकर बताएं)">
+        <span class="voice-btn-circle">
+          <svg class="icon voice-mic-icon"><use href="#ic-mic"/></svg>
+          <span class="voice-wave-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+        </span>
+      </button>
       <button class="ai-chef-send-btn" type="submit" aria-label="Send">&#10148;</button>
     </form>
   </div>
