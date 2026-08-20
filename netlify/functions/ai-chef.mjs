@@ -44,12 +44,22 @@ import { verifySession } from "./_lib/auth.mjs";
    no point budgeting past that. Leave a few seconds of margin under
    it for function cold-start + network overhead. */
 const TOTAL_BUDGET_MS = 18000;
-const PER_ATTEMPT_MS = 4500;
+const PER_ATTEMPT_MS = 5000;
 
 /* OpenRouter free-tier slugs, ordered by preference. Kept to models
    that have been stable/well-established for a long time — if the
    free roster changes, check https://openrouter.ai/models (filter:
-   "free") and update this list. */
+   "free") and update this list.
+
+   NOTE: a brand-new OpenRouter account's data-collection policy
+   defaults to blocking every :free model with a 404
+   ("no_endpoints"/"privacy_restricted" — those providers require
+   permission to log/train on the prompt). We no longer rely on a
+   dashboard toggle to fix this (it wasn't findable in the current UI
+   when we checked) — instead callOpenRouter() below sends
+   `provider: { data_collection: "allow" }` in every request body,
+   which overrides the account default per-request. See
+   https://openrouter.ai/docs/features/provider-routing */
 const OPENROUTER_MODELS = [
   "openai/gpt-oss-20b:free",
   "meta-llama/llama-3.1-8b-instruct:free",
@@ -58,13 +68,14 @@ const OPENROUTER_MODELS = [
 ];
 
 /* Groq (api.groq.com) — very fast inference, generous free tier.
-   gemma2-9b-it, mixtral-8x7b-32768 and the deepseek-r1 distills are
-   all DEAD (see console.groq.com/docs/deprecations) — do not add them
-   back without checking that page first. */
+   gemma2-9b-it, mixtral-8x7b-32768, the deepseek-r1 distills, AND
+   (as of Aug 16 2026) llama-3.1-8b-instant + llama-3.3-70b-versatile
+   are all DEAD — confirmed live in production (404s), not just from
+   the deprecations doc. Check console.groq.com/docs/deprecations
+   before adding anything back. */
 const GROQ_MODELS = [
-  "llama-3.1-8b-instant",
-  "llama-3.3-70b-versatile",
-  "openai/gpt-oss-20b"
+  "openai/gpt-oss-20b",
+  "openai/gpt-oss-120b"
 ];
 
 /* Mistral AI "La Plateforme" (api.mistral.ai). The "-latest" aliases
@@ -88,14 +99,17 @@ function timeoutSignal(ms) {
   return { signal: ac.signal, clear: () => clearTimeout(t) };
 }
 
-async function callOpenAiCompatible(url, apiKey, prompt, model, maxTokens, extraHeaders, tokensField) {
+async function callOpenAiCompatible(url, apiKey, prompt, model, maxTokens, extraHeaders, tokensField, extraBody) {
   const { signal, clear } = timeoutSignal(PER_ATTEMPT_MS);
   try {
-    const body = {
-      model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2
-    };
+    const body = Object.assign(
+      {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2
+      },
+      extraBody || {}
+    );
     body[tokensField || "max_tokens"] = maxTokens || 1200;
 
     const res = await fetch(url, {
@@ -135,7 +149,16 @@ function callOpenRouter(apiKey, prompt, model, maxTokens, siteUrl) {
     "https://openrouter.ai/api/v1/chat/completions",
     apiKey, prompt, model, maxTokens,
     { "HTTP-Referer": siteUrl || "https://npmart.netlify.app", "X-Title": "NP Mart AI Chef" },
-    "max_tokens"
+    "max_tokens",
+    // Fixes the "404 no_endpoints / privacy_restricted" error that a
+    // fresh OpenRouter account gets on every single :free model: those
+    // providers require permission to log/train on the prompt, and a
+    // new account's data-collection policy defaults to blocking that
+    // account-wide. This overrides it per-request in code instead of
+    // requiring a dashboard setting (which may not even be visible in
+    // the current OpenRouter UI — confirmed by testing). See
+    // https://openrouter.ai/docs/features/provider-routing
+    { provider: { data_collection: "allow" } }
   );
 }
 
