@@ -61,21 +61,17 @@ const PER_ATTEMPT_MS = 5000;
    which overrides the account default per-request. See
    https://openrouter.ai/docs/features/provider-routing */
 const OPENROUTER_MODELS = [
-  "openai/gpt-oss-20b:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "google/gemma-2-9b-it:free",
-  "mistralai/mistral-7b-instruct:free"
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "openrouter/free"
 ];
 
-/* Groq (api.groq.com) — very fast inference, generous free tier.
-   gemma2-9b-it, mixtral-8x7b-32768, the deepseek-r1 distills, AND
-   (as of Aug 16 2026) llama-3.1-8b-instant + llama-3.3-70b-versatile
-   are all DEAD — confirmed live in production (404s), not just from
-   the deprecations doc. Check console.groq.com/docs/deprecations
-   before adding anything back. */
+/* Groq (api.groq.com) — very fast inference, generous free tier. */
 const GROQ_MODELS = [
   "openai/gpt-oss-20b",
-  "openai/gpt-oss-120b"
+  "openai/gpt-oss-120b",
+  "qwen/qwen3.6-27b"
 ];
 
 /* Mistral AI "La Plateforme" (api.mistral.ai). The "-latest" aliases
@@ -89,8 +85,10 @@ const MISTRAL_MODELS = [
 
 /* Gemini models on the generateContent endpoint. */
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite"
+  "gemini-3.6-flash",
+  "gemini-3.0-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash"
 ];
 
 function timeoutSignal(ms) {
@@ -295,7 +293,7 @@ async function runDiagnostics(siteUrl) {
     }
     for (let i = 0; i < keys.length; i++) {
       const model = provider.models[0];
-      const r = await provider.call(keys[i], "Reply with the single word: ok", model, 5);
+      const r = await provider.call(keys[i], "Reply with the single word: ok", model, 150);
       const label = keys.length > 1 ? labelFor(provider.id) + " (key " + (i + 1) + ")" : labelFor(provider.id);
       results.push(Object.assign({ provider: provider.id, label, configured: true, model }, r));
     }
