@@ -163,6 +163,18 @@
   .chip{display:inline-block; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .chip-uncat{background:#FEF2F2; color:var(--red);}
   .chip-done{background:#F0FDF4; color:var(--green-hover);}
+
+  /* ── Orders tab ── */
+  .status-select{padding:6px 8px; border-radius:8px; font-size:12.5px; font-weight:700; border:1.5px solid var(--border); background:#fff; cursor:pointer;}
+  .status-select.st-new{background:#EFF6FF; color:#1D4ED8; border-color:#BFDBFE;}
+  .status-select.st-packed{background:#FFFBEB; color:var(--amber); border-color:#FDE68A;}
+  .status-select.st-out_for_delivery{background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE;}
+  .status-select.st-delivered{background:#F0FDF4; color:var(--green-hover); border-color:#BBF7D0;}
+  .status-select.st-cancelled{background:#FEF2F2; color:var(--red); border-color:#FECACA;}
+  .ord-addr{font-size:12px; color:var(--text-muted); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ord-items{font-size:12px; color:var(--text-muted); max-width:320px;}
+  .ord-customer{font-weight:700; font-size:13px;}
+  .ord-phone{font-size:11.5px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace;}
   .checkbox{width:16px; height:16px; cursor:pointer;}
   tr.row-checked{background:rgba(22,163,74,0.06);}
   .thumb-wrap{position:relative; width:42px; height:42px;}
@@ -201,6 +213,7 @@
     <div class="tab-nav">
       <button class="tab-btn active" data-tab="products" id="tabbtn-products">Products</button>
       <button class="tab-btn" data-tab="categories" id="tabbtn-categories">Categories &amp; Photos</button>
+      <button class="tab-btn" data-tab="orders" id="tabbtn-orders">Orders</button>
     </div>
     <div class="topbar-actions">
       <button class="btn-ghost" id="toggle-add-btn">+ Add product</button>
@@ -327,6 +340,52 @@
             <button id="cat-next-page-btn">Next →</button>
           </div>
         </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ TAB: ORDERS ═══ -->
+  <div class="tab-panel" id="tab-orders">
+    <main>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="ic">🔍</span>
+          <input type="text" id="ord-search-input" placeholder="Search by customer name, phone, or order ID…" />
+        </div>
+        <select class="filter-select" id="ord-status-filter">
+          <option value="">All statuses</option>
+          <option value="new">New</option>
+          <option value="packed">Packed</option>
+          <option value="out_for_delivery">Out for Delivery</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <div class="stat" id="ord-result-stat">Loading…</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:80px;">Order</th>
+              <th style="width:110px;">Date</th>
+              <th>Customer</th>
+              <th style="width:140px;">Address</th>
+              <th>Items</th>
+              <th style="width:90px;">Total ₹</th>
+              <th style="width:170px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="ord-tbody">
+          </tbody>
+        </table>
+        <div class="empty-state" id="ord-empty-state" style="display:none;">No orders match your search.</div>
+      </div>
+
+      <div class="pager">
+        <button id="ord-prev-page-btn">← Prev</button>
+        <span id="ord-page-label">Page 1</span>
+        <button id="ord-next-page-btn">Next →</button>
       </div>
     </main>
   </div>
@@ -639,6 +698,7 @@
   // TABS
   // ═══════════════════════════════════════════════════════════════
   var catTabLoaded = false;
+  var ordTabLoaded = false;
   document.querySelectorAll(".tab-btn").forEach(function(btn){
     btn.addEventListener("click", function(){
       document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
@@ -649,6 +709,10 @@
         loadTaxonomy();
         loadCatProducts();
         catTabLoaded = true;
+      }
+      if (btn.dataset.tab === "orders") {
+        loadOrders();
+        ordTabLoaded = true;
       }
     });
   });
@@ -964,6 +1028,127 @@
         assignBtn.textContent = "Assign to Selected";
         toast("Network error assigning category.");
       });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // ORDERS TAB
+  // ═══════════════════════════════════════════════════════════════
+  var ordState = { page: 1, pageSize: 50, q: "", status: "", total: 0 };
+  var ordTbody = document.getElementById("ord-tbody");
+  var ordEmptyState = document.getElementById("ord-empty-state");
+  var ordResultStat = document.getElementById("ord-result-stat");
+  var ordPageLabel = document.getElementById("ord-page-label");
+  var ordPrevBtn = document.getElementById("ord-prev-page-btn");
+  var ordNextBtn = document.getElementById("ord-next-page-btn");
+  var ordSearchInput = document.getElementById("ord-search-input");
+  var ordStatusFilter = document.getElementById("ord-status-filter");
+
+  var ORDER_STATUSES = [
+    ["new", "New"],
+    ["packed", "Packed"],
+    ["out_for_delivery", "Out for Delivery"],
+    ["delivered", "Delivered"],
+    ["cancelled", "Cancelled"]
+  ];
+
+  function formatOrderDate(iso){
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", " +
+        d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    } catch(e) { return iso || ""; }
+  }
+
+  function loadOrders(){
+    var url = "/api/orders?page=" + ordState.page + "&pageSize=" + ordState.pageSize
+      + (ordState.q ? "&q=" + encodeURIComponent(ordState.q) : "")
+      + (ordState.status ? "&status=" + encodeURIComponent(ordState.status) : "");
+
+    ordResultStat.textContent = "Loading…";
+    fetch(url, { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) { toast("Couldn't load orders."); return; }
+        ordState.total = data.total;
+        renderOrders(data.items);
+        var maxPage = Math.max(1, Math.ceil(data.total / ordState.pageSize));
+        ordPageLabel.textContent = "Page " + ordState.page + " of " + maxPage;
+        ordPrevBtn.disabled = ordState.page <= 1;
+        ordNextBtn.disabled = ordState.page >= maxPage;
+        ordResultStat.textContent = data.total.toLocaleString("en-IN") + (data.total === 1 ? " order" : " orders");
+      })
+      .catch(function(){ toast("Network error loading orders."); });
+  }
+
+  function renderOrders(items){
+    if (!items.length) {
+      ordTbody.innerHTML = "";
+      ordEmptyState.style.display = "block";
+      return;
+    }
+    ordEmptyState.style.display = "none";
+
+    ordTbody.innerHTML = items.map(function(o){
+      var itemsSummary = (o.items || []).map(function(it){
+        return escapeHtml(it.name) + " ×" + it.qty;
+      }).join(", ");
+
+      var statusOptions = ORDER_STATUSES.map(function(s){
+        return '<option value="' + s[0] + '"' + (o.status === s[0] ? " selected" : "") + '>' + s[1] + '</option>';
+      }).join("");
+
+      return '<tr>' +
+        '<td class="cell-id">' + escapeHtml(o.id) + '</td>' +
+        '<td style="font-size:12px; color:var(--text-muted);">' + formatOrderDate(o.createdAt) + '</td>' +
+        '<td><div class="ord-customer">' + escapeHtml(o.customerName) + '</div><div class="ord-phone">' + escapeHtml(o.phone) + '</div></td>' +
+        '<td class="ord-addr" title="' + escapeAttr(o.address) + '">' + escapeHtml(o.address) + '</td>' +
+        '<td class="ord-items" title="' + escapeAttr(itemsSummary) + '">' + itemsSummary + '</td>' +
+        '<td>₹' + Number(o.total || 0).toLocaleString("en-IN") + '</td>' +
+        '<td><select class="status-select st-' + o.status + '" data-id="' + escapeAttr(o.id) + '">' + statusOptions + '</select></td>' +
+        '</tr>';
+    }).join("");
+
+    ordTbody.querySelectorAll(".status-select").forEach(function(sel){
+      sel.addEventListener("change", function(){
+        var id = sel.dataset.id;
+        var newStatus = sel.value;
+        sel.className = "status-select st-" + newStatus;
+        fetch("/api/orders", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: id, status: newStatus })
+        }).then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.ok) toast("Order " + id + " marked " + newStatus.replace(/_/g, " ") + ".");
+            else toast("Couldn't update order status: " + (data.error || "unknown error"));
+          }).catch(function(){ toast("Network error updating order."); });
+      });
+    });
+  }
+
+  var ordSearchTimer;
+  ordSearchInput.addEventListener("input", function(){
+    clearTimeout(ordSearchTimer);
+    ordSearchTimer = setTimeout(function(){
+      ordState.q = ordSearchInput.value.trim();
+      ordState.page = 1;
+      loadOrders();
+    }, 300);
+  });
+
+  ordStatusFilter.addEventListener("change", function(){
+    ordState.status = ordStatusFilter.value;
+    ordState.page = 1;
+    loadOrders();
+  });
+
+  ordPrevBtn.addEventListener("click", function(){
+    if (ordState.page > 1) { ordState.page--; loadOrders(); }
+  });
+  ordNextBtn.addEventListener("click", function(){
+    var maxPage = Math.max(1, Math.ceil(ordState.total / ordState.pageSize));
+    if (ordState.page < maxPage) { ordState.page++; loadOrders(); }
   });
 
 })();

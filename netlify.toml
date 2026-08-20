@@ -53,6 +53,11 @@
   to     = "/.netlify/functions/product-image"
   status = 200
 
+[[redirects]]
+  from   = "/api/orders"
+  to     = "/.netlify/functions/orders"
+  status = 200
+
 # Note: Netlify already forces HTTPS on every *.netlify.app domain (and any
 # custom domain with SSL enabled) automatically, so no explicit HTTP→HTTPS
 # redirect is needed here.
