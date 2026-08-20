@@ -1,0 +1,71 @@
+# ─── NP MART – Netlify Configuration ───────────────────────────────────────
+# This file controls the build, redirects, and function settings.
+# DO NOT put secret keys here — use Netlify UI > Environment Variables instead.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  # Since the whole site is a single HTML file (no npm build step),
+  # we publish the root of the repo directly.
+  publish = "."
+
+  # Tell Netlify where the serverless functions live.
+  functions = "netlify/functions"
+
+# Serve the AI Chef proxy at /api/ai-chef
+# The ai-chef.mjs function itself also declares   export const config = { path: "/api/ai-chef" }
+# so this redirect is a belt-and-suspenders fallback.
+[[redirects]]
+  from   = "/api/ai-chef"
+  to     = "/.netlify/functions/ai-chef"
+  status = 200
+
+# Admin panel API (see netlify/functions/products.mjs, admin-login.mjs,
+# admin-logout.mjs, admin-me.mjs). Each function also declares its own
+# `export const config = { path: ... }`, so these are belt-and-suspenders
+# fallbacks, same as /api/ai-chef above.
+[[redirects]]
+  from   = "/api/products"
+  to     = "/.netlify/functions/products"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-login"
+  to     = "/.netlify/functions/admin-login"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-logout"
+  to     = "/.netlify/functions/admin-logout"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-me"
+  to     = "/.netlify/functions/admin-me"
+  status = 200
+
+[[redirects]]
+  from   = "/api/taxonomy"
+  to     = "/.netlify/functions/taxonomy"
+  status = 200
+
+[[redirects]]
+  from   = "/api/product-image"
+  to     = "/.netlify/functions/product-image"
+  status = 200
+
+# Note: Netlify already forces HTTPS on every *.netlify.app domain (and any
+# custom domain with SSL enabled) automatically, so no explicit HTTP→HTTPS
+# redirect is needed here.
+
+[functions]
+  # Use ES Modules runtime (required for .mjs files).
+  node_bundler = "esbuild"
+  # NOTE: products.mjs used to load its one-time seed catalog from a file
+  # bundled via `included_files` at runtime (fs.readFileSync). That was
+  # the likely cause of /api/products 502-ing in production — Netlify's
+  # included_files path resolution for esbuild-bundled functions didn't
+  # line up with where the function expected to find it at runtime.
+  # Fixed by importing the seed JSON directly in products.mjs instead, so
+  # esbuild bakes it into the bundle at build time. included_files is no
+  # longer needed for that — left removed intentionally, don't re-add it
+  # for this purpose.

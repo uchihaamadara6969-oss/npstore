@@ -1,0 +1,9 @@
+{
+  "name": "npmart-website",
+  "private": true,
+  "type": "module",
+  "description": "NP Mart supermarket delivery site — static storefront + Netlify Functions backend (AI Chef proxy, admin product API).",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>NP Mart — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#FAFAFA; --panel:#FFFFFF; --border:#E5E7EB; --text:#111827; --text-muted:#6B7280;
+    --green:#16A34A; --green-hover:#15803D; --red:#DC2626; --amber:#D97706;
+    --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg); color:var(--text);}
+  code, .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ── Login screen ── */
+  #login-screen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .login-box{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:36px 32px; width:100%; max-width:380px;}
+  .login-box h1{font-size:20px; margin:0 0 4px;}
+  .login-box p{color:var(--text-muted); font-size:13.5px; margin:0 0 22px;}
+  .login-box .brand{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .login-box .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--green);}
+  .login-box .brand span{font-weight:800; font-size:15px; letter-spacing:.2px;}
+  input[type=password], input[type=text], input[type=number]{
+    width:100%; padding:11px 13px; border:1.5px solid var(--border); border-radius:10px; font-size:15px;
+    font-family:inherit; background:#fff; color:var(--text); outline:none; transition:border-color .15s;
+  }
+  input:focus{border-color:var(--green);}
+  button{font-family:inherit; cursor:pointer; border:none;}
+  .btn-primary{
+    width:100%; padding:12px; border-radius:10px; background:var(--green); color:#fff; font-weight:700;
+    font-size:14.5px; margin-top:14px; transition:background .15s;
+  }
+  .btn-primary:hover{background:var(--green-hover);}
+  .btn-primary:disabled{opacity:.6; cursor:not-allowed;}
+  .error-msg{color:var(--red); font-size:13px; margin-top:10px; display:none;}
+
+  /* ── Dashboard ── */
+  #dash-screen{display:none; min-height:100vh;}
+  header.topbar{
+    position:sticky; top:0; z-index:10; background:var(--panel); border-bottom:1px solid var(--border);
+    padding:14px 22px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .topbar .brand{display:flex; align-items:center; gap:9px; font-weight:800; font-size:15px;}
+  .topbar .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--green);}
+  .topbar-actions{display:flex; align-items:center; gap:10px;}
+  .btn-ghost{padding:8px 14px; border-radius:9px; background:transparent; border:1.5px solid var(--border); color:var(--text); font-size:13.5px; font-weight:600;}
+  .btn-ghost:hover{border-color:var(--text-muted);}
+  .btn-green{padding:9px 16px; border-radius:9px; background:var(--green); color:#fff; font-size:13.5px; font-weight:700;}
+  .btn-green:hover{background:var(--green-hover);}
+
+  .tab-nav{display:flex; gap:4px; background:#F3F4F6; border-radius:10px; padding:3px;}
+  .tab-nav button{padding:8px 16px; border-radius:8px; background:transparent; color:var(--text-muted); font-size:13.5px; font-weight:700;}
+  .tab-nav button.active{background:#fff; color:var(--text); box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  main{max-width:1180px; margin:0 auto; padding:22px;}
+  .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;}
+  .search-wrap{flex:1; min-width:220px; position:relative;}
+  .search-wrap input{padding-left:38px;}
+  .search-wrap .ic{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:15px;}
+  .stat{font-size:13px; color:var(--text-muted); white-space:nowrap;}
+
+  .table-wrap{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{
+    text-align:left; padding:11px 12px; background:#F9FAFB; color:var(--text-muted); font-weight:700;
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:8px 12px; border-bottom:1px solid #F1F2F4; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFCFB;}
+  .cell-id{color:var(--text-muted); font-size:12px;}
+  td input[type=text]{padding:7px 9px; font-size:13.5px;}
+  td input.num{padding:7px 9px; font-size:13.5px; width:82px;}
+  td input.name-input{min-width:200px;}
+  .row-actions{display:flex; gap:6px;}
+  .btn-save{padding:7px 11px; border-radius:7px; background:var(--green); color:#fff; font-size:12.5px; font-weight:700;}
+  .btn-save:hover{background:var(--green-hover);}
+  .btn-save:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-del{padding:7px 11px; border-radius:7px; background:#FEF2F2; color:var(--red); font-size:12.5px; font-weight:700; border:1px solid #FCA5A5;}
+  .btn-del:hover{background:#FEE2E2;}
+  .badge-oos{display:inline-block; padding:2px 7px; border-radius:6px; background:#FEF2F2; color:var(--red); font-size:11px; font-weight:700; margin-left:6px;}
+  .badge-saved{color:var(--green); font-size:11.5px; font-weight:700; margin-left:6px; opacity:0; transition:opacity .2s;}
+  .badge-saved.show{opacity:1;}
+
+  .pager{display:flex; align-items:center; justify-content:center; gap:14px; padding:16px;}
+  .pager button{padding:7px 13px; border-radius:8px; background:#fff; border:1.5px solid var(--border); font-size:13px; font-weight:600;}
+  .pager button:disabled{opacity:.4; cursor:not-allowed;}
+  .pager span{font-size:13px; color:var(--text-muted);}
+
+  .empty-state{padding:60px 20px; text-align:center; color:var(--text-muted); font-size:14px;}
+
+  /* Add product panel */
+  .add-panel{display:none; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; margin-bottom:16px;}
+  .add-panel.show{display:block;}
+  .add-panel h3{margin:0 0 12px; font-size:14.5px;}
+  .add-grid{display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr auto; gap:10px; align-items:end;}
+  .add-grid label{display:block; font-size:11.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px;}
+  @media (max-width: 760px){ .add-grid{grid-template-columns:1fr 1fr;} }
+
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; padding:11px 18px; border-radius:10px; font-size:13.5px; font-weight:600; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50;}
+
+  /* ── AI key diagnostics panel ── */
+  .ai-diag-overlay{display:none; position:fixed; inset:0; background:rgba(17,24,39,.35); z-index:60; align-items:flex-start; justify-content:center; padding-top:80px;}
+  .ai-diag-overlay.open{display:flex;}
+  .ai-diag-box{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); width:100%; max-width:460px; padding:20px 22px; max-height:80vh; overflow-y:auto;}
+  .ai-diag-box h3{margin:0 0 4px; font-size:15.5px;}
+  .ai-diag-box p.sub{margin:0 0 16px; color:var(--text-muted); font-size:12.5px;}
+  .ai-diag-row{border:1.5px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;}
+  .ai-diag-row .head{display:flex; align-items:center; justify-content:space-between; font-weight:700; font-size:13.5px;}
+  .ai-diag-row .pill{font-size:11px; font-weight:800; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em;}
+  .ai-diag-row.ok{border-color:#BBF7D0; background:#F0FDF4;}
+  .ai-diag-row.ok .pill{background:var(--green); color:#fff;}
+  .ai-diag-row.fail{border-color:#FECACA; background:#FEF2F2;}
+  .ai-diag-row.fail .pill{background:var(--red); color:#fff;}
+  .ai-diag-row.skip{border-color:var(--border); background:#F9FAFB;}
+  .ai-diag-row.skip .pill{background:#9CA3AF; color:#fff;}
+  .ai-diag-row .detail{margin-top:6px; font-size:12.5px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace; word-break:break-word;}
+  .ai-diag-box .close-row{text-align:right; margin-top:4px;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+  /* ── Categories & Photos tab ── */
+  #tab-categories main{max-width:1440px;}
+  .cat-layout{display:flex; gap:18px; align-items:flex-start;}
+  .cat-sidebar{
+    width:280px; flex-shrink:0; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:18px; position:sticky; top:86px;
+  }
+  .cat-sidebar h3{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin:18px 0 10px; font-weight:700;}
+  .cat-sidebar h3:first-child{margin-top:0;}
+  .cat-field{margin-bottom:10px;}
+  .cat-field label{display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:4px; font-weight:600;}
+  .cat-field select{width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; background:#fff; color:var(--text);}
+  .cat-field input[type=text]{margin-top:6px; padding:8px 10px; font-size:12.5px;}
+  .sel-count{font-size:12.5px; color:var(--green); font-weight:700; margin-bottom:10px;}
+  .assign-btn{width:100%; margin-top:6px;}
+  .cat-hint{font-size:11.5px; color:var(--text-muted); margin-top:10px; line-height:1.5;}
+  .tree{font-size:12.5px; max-height:320px; overflow-y:auto;}
+  .tree-row{padding:6px 7px; border-radius:7px; display:flex; justify-content:space-between; gap:8px; cursor:default;}
+  .tree-row:hover{background:#F9FAFB;}
+  .tree-row .tname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tree-row .tcount{color:var(--text-muted); font-size:11px; flex-shrink:0;}
+  .tree-empty{color:var(--text-muted); font-size:12px; padding:6px 2px;}
+
+  .cat-content{flex:1; min-width:0;}
+  .filter-select{padding:9px 11px; border:1.5px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; background:#fff; color:var(--text);}
+  .thumb-cell{width:52px;}
+  .thumb{
+    width:42px; height:42px; border-radius:8px; object-fit:cover; background:#F3F4F6; border:1px solid var(--border);
+    cursor:pointer; display:block;
+  }
+  .thumb-placeholder{
+    width:42px; height:42px; border-radius:8px; background:#F3F4F6; border:1px dashed var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--text-muted); cursor:pointer;
+  }
+  .chip{display:inline-block; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .chip-uncat{background:#FEF2F2; color:var(--red);}
+  .chip-done{background:#F0FDF4; color:var(--green-hover);}
+  .checkbox{width:16px; height:16px; cursor:pointer;}
+  tr.row-checked{background:rgba(22,163,74,0.06);}
+  .thumb-wrap{position:relative; width:42px; height:42px;}
+  .thumb-del{
+    display:none; position:absolute; top:-6px; right:-6px; width:17px; height:17px; border-radius:50%;
+    background:var(--red); color:#fff; font-size:11px; line-height:17px; text-align:center; padding:0;
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+  .thumb-wrap.has-photo .thumb-del{display:block;}
+  @media (max-width: 900px){
+    .cat-layout{flex-direction:column;}
+    .cat-sidebar{width:100%; position:static;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="brand"><span class="dot"></span><span>NP MART ADMIN</span></div>
+    <h1>Sign in</h1>
+    <p>Enter the admin password to manage products, prices &amp; stock.</p>
+    <form id="login-form">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required />
+      <button type="submit" class="btn-primary" id="login-btn">Sign in</button>
+      <div class="error-msg" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash-screen">
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span><span>NP MART ADMIN</span></div>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="products" id="tabbtn-products">Products</button>
+      <button class="tab-btn" data-tab="categories" id="tabbtn-categories">Categories &amp; Photos</button>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-ghost" id="toggle-add-btn">+ Add product</button>
+      <button class="btn-ghost" id="test-ai-btn">Test AI Keys</button>
+      <button class="btn-ghost" id="logout-btn">Log out</button>
+    </div>
+  </header>
+
+  <!-- ═══ TAB: PRODUCTS (price / stock / name / unit editing) ═══ -->
+  <div class="tab-panel active" id="tab-products">
+    <main>
+      <div class="add-panel" id="add-panel">
+        <h3>Add a new product</h3>
+        <div class="add-grid">
+          <div><label>Name</label><input type="text" id="add-name" placeholder="Product name" /></div>
+          <div><label>Unit</label><input type="text" id="add-unit" placeholder="e.g. 1 KG" /></div>
+          <div><label>Price ₹</label><input type="number" id="add-price" min="0" step="1" /></div>
+          <div><label>MRP ₹</label><input type="number" id="add-mrp" min="0" step="1" /></div>
+          <div><label>Stock</label><input type="number" id="add-stock" min="0" step="1" /></div>
+          <div><button class="btn-green" id="add-submit-btn">Add</button></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="ic">🔍</span>
+          <input type="text" id="search-input" placeholder="Search by product name or ID…" />
+        </div>
+        <div class="stat" id="result-stat">Loading…</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px;">ID</th>
+              <th>Name</th>
+              <th style="width:110px;">Unit</th>
+              <th style="width:100px;">Price ₹</th>
+              <th style="width:100px;">MRP ₹</th>
+              <th style="width:90px;">Stock</th>
+              <th style="width:160px;"></th>
+            </tr>
+          </thead>
+          <tbody id="product-tbody">
+          </tbody>
+        </table>
+        <div class="empty-state" id="empty-state" style="display:none;">No products match your search.</div>
+      </div>
+
+      <div class="pager">
+        <button id="prev-page-btn">← Prev</button>
+        <span id="page-label">Page 1</span>
+        <button id="next-page-btn">Next →</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ TAB: CATEGORIES & PHOTOS ═══ -->
+  <div class="tab-panel" id="tab-categories">
+    <main>
+      <div class="cat-layout">
+        <aside class="cat-sidebar">
+          <h3>Assign to Selected</h3>
+          <div class="sel-count" id="cat-sel-count">0 products selected</div>
+          <div class="cat-field">
+            <label>Category</label>
+            <select id="cat-select"></select>
+            <input type="text" id="cat-new" placeholder="or type a new category…" />
+          </div>
+          <div class="cat-field">
+            <label>Subcategory (optional)</label>
+            <select id="sub-select"></select>
+            <input type="text" id="sub-new" placeholder="or type a new subcategory…" />
+          </div>
+          <div class="cat-field">
+            <label>Microcategory (optional)</label>
+            <select id="micro-select"></select>
+            <input type="text" id="micro-new" placeholder="or type a new microcategory…" />
+          </div>
+          <button class="btn-green assign-btn" id="assign-btn" disabled>Assign to Selected</button>
+          <div class="cat-hint">Check products in the list, pick or type a category path here, then Assign. Click a product's photo square to upload or replace its photo — that saves immediately, no Assign needed.</div>
+
+          <h3>Existing Categories</h3>
+          <div class="tree" id="tree-view"><div class="tree-empty">Loading…</div></div>
+        </aside>
+
+        <div class="cat-content">
+          <div class="toolbar">
+            <div class="search-wrap">
+              <span class="ic">🔍</span>
+              <input type="text" id="cat-search-input" placeholder="Search by product name or ID…" />
+            </div>
+            <select class="filter-select" id="cat-status-filter">
+              <option value="">All products</option>
+              <option value="uncategorized">Uncategorized only</option>
+              <option value="categorized">Categorized only</option>
+            </select>
+            <button class="btn-ghost" id="cat-select-all-btn">Select all on page</button>
+            <button class="btn-ghost" id="cat-clear-sel-btn">Clear selection</button>
+            <div class="stat" id="cat-result-stat">Loading…</div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:34px;"></th>
+                  <th class="thumb-cell"></th>
+                  <th>Name</th>
+                  <th style="width:90px;">Price ₹</th>
+                  <th>Category</th>
+                </tr>
+              </thead>
+              <tbody id="cat-tbody">
+              </tbody>
+            </table>
+            <div class="empty-state" id="cat-empty-state" style="display:none;">No products match this filter.</div>
+          </div>
+
+          <div class="pager">
+            <button id="cat-prev-page-btn">← Prev</button>
+            <span id="cat-page-label">Page 1</span>
+            <button id="cat-next-page-btn">Next →</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<input type="file" id="photo-file-input" accept="image/*" style="display:none;" />
+
+<div class="toast" id="toast"></div>
+
+<!-- AI KEY DIAGNOSTICS -->
+<div class="ai-diag-overlay" id="ai-diag-overlay">
+  <div class="ai-diag-box">
+    <h3>AI Chef key test</h3>
+    <p class="sub">Sends one tiny test message to each configured provider so you can see exactly what's wrong, without opening DevTools.</p>
+    <div id="ai-diag-body">Testing…</div>
+    <div class="close-row"><button class="btn-ghost" id="ai-diag-close-btn">Close</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var state = { page: 1, pageSize: 50, q: "", total: 0 };
+
+  var loginScreen = document.getElementById("login-screen");
+  var dashScreen = document.getElementById("dash-screen");
+  var loginForm = document.getElementById("login-form");
+  var loginError = document.getElementById("login-error");
+  var loginBtn = document.getElementById("login-btn");
+  var tbody = document.getElementById("product-tbody");
+  var emptyState = document.getElementById("empty-state");
+  var resultStat = document.getElementById("result-stat");
+  var pageLabel = document.getElementById("page-label");
+  var prevBtn = document.getElementById("prev-page-btn");
+  var nextBtn = document.getElementById("next-page-btn");
+  var searchInput = document.getElementById("search-input");
+  var toastEl = document.getElementById("toast");
+  var addPanel = document.getElementById("add-panel");
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(function(){ toastEl.classList.remove("show"); }, 2200);
+  }
+
+  function showDash(){
+    loginScreen.style.display = "none";
+    dashScreen.style.display = "block";
+    loadProducts();
+  }
+  function showLogin(){
+    dashScreen.style.display = "none";
+    loginScreen.style.display = "flex";
+  }
+
+  // ── Session check on load ──
+  fetch("/api/admin-me", { credentials: "include" })
+    .then(function(r){ return r.ok ? showDash() : showLogin(); })
+    .catch(showLogin);
+
+  // ── Login ──
+  loginForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    loginError.style.display = "none";
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Signing in…";
+    var password = document.getElementById("login-password").value;
+
+    fetch("/api/admin-login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: password })
+    }).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); })
+      .then(function(res){
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign in";
+        if (res.ok && res.data.ok) {
+          document.getElementById("login-password").value = "";
+          showDash();
+        } else {
+          loginError.textContent = res.data && res.data.message ? res.data.message : "Wrong password. Try again.";
+          loginError.style.display = "block";
+        }
+      }).catch(function(){
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign in";
+        loginError.textContent = "Couldn't reach the server. Check your connection.";
+        loginError.style.display = "block";
+      });
+  });
+
+  // ── Logout ──
+  document.getElementById("logout-btn").addEventListener("click", function(){
+    fetch("/api/admin-logout", { method: "POST", credentials: "include" }).then(showLogin);
+  });
+
+  // ── Test AI Keys (ai-chef diagnostics) ──
+  var aiDiagOverlay = document.getElementById("ai-diag-overlay");
+  var aiDiagBody = document.getElementById("ai-diag-body");
+  document.getElementById("ai-diag-close-btn").addEventListener("click", function(){
+    aiDiagOverlay.classList.remove("open");
+  });
+  document.getElementById("test-ai-btn").addEventListener("click", function(){
+    aiDiagBody.innerHTML = "Testing…";
+    aiDiagOverlay.classList.add("open");
+    fetch("/api/ai-chef?diag=1", { credentials: "include" })
+      .then(function(r){ return r.json().then(function(data){ return { status: r.status, data: data }; }); })
+      .then(function(res){
+        if (res.status === 401) {
+          aiDiagBody.innerHTML = '<div class="ai-diag-row fail"><div class="head">Not logged in<span class="pill">Fail</span></div><div class="detail">Your admin session expired — log out and back in, then try again.</div></div>';
+          return;
+        }
+        var data = res.data || {};
+        function row(r){
+          var label = r.label || r.provider || "Provider";
+          if (r.configured === false) {
+            return '<div class="ai-diag-row skip"><div class="head">' + label + '<span class="pill">Not set</span></div>' +
+              '<div class="detail">' + (r.message || "Key not configured.") + '</div></div>';
+          }
+          if (r.ok) {
+            return '<div class="ai-diag-row ok"><div class="head">' + label + '<span class="pill">Working</span></div>' +
+              '<div class="detail">Model tested: ' + r.model + '</div></div>';
+          }
+          return '<div class="ai-diag-row fail"><div class="head">' + label + '<span class="pill">Fail (HTTP ' + r.status + ')</span></div>' +
+            '<div class="detail">' + (r.detail || "No detail returned.") + '</div></div>';
+        }
+        var results = Array.isArray(data.results) ? data.results : [];
+        var html = results.map(row).join("");
+        aiDiagBody.innerHTML = html || '<div class="ai-diag-row fail"><div class="head">Unexpected response<span class="pill">Fail</span></div><div class="detail">' + JSON.stringify(data).slice(0,300) + '</div></div>';
+      })
+      .catch(function(err){
+        aiDiagBody.innerHTML = '<div class="ai-diag-row fail"><div class="head">Network error<span class="pill">Fail</span></div><div class="detail">' + String(err && err.message || err) + '</div></div>';
+      });
+  });
+
+  // ── Add product panel toggle ──
+  document.getElementById("toggle-add-btn").addEventListener("click", function(){
+    addPanel.classList.toggle("show");
+  });
+
+  document.getElementById("add-submit-btn").addEventListener("click", function(){
+    var name = document.getElementById("add-name").value.trim();
+    if (!name) { toast("Product name is required."); return; }
+    var body = {
+      name: name,
+      unit: document.getElementById("add-unit").value.trim(),
+      price: document.getElementById("add-price").value,
+      mrp: document.getElementById("add-mrp").value,
+      stock: document.getElementById("add-stock").value
+    };
+    fetch("/api/products", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data.ok) {
+          toast("Product added.");
+          ["add-name","add-unit","add-price","add-mrp","add-stock"].forEach(function(id){
+            document.getElementById(id).value = "";
+          });
+          addPanel.classList.remove("show");
+          state.page = 1;
+          loadProducts();
+        } else {
+          toast("Couldn't add product: " + (data.error || "unknown error"));
+        }
+      }).catch(function(){ toast("Network error adding product."); });
+  });
+
+  // ── Search (debounced) ──
+  var searchTimer;
+  searchInput.addEventListener("input", function(){
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function(){
+      state.q = searchInput.value.trim();
+      state.page = 1;
+      loadProducts();
+    }, 300);
+  });
+
+  // ── Pagination ──
+  prevBtn.addEventListener("click", function(){
+    if (state.page > 1) { state.page--; loadProducts(); }
+  });
+  nextBtn.addEventListener("click", function(){
+    var maxPage = Math.max(1, Math.ceil(state.total / state.pageSize));
+    if (state.page < maxPage) { state.page++; loadProducts(); }
+  });
+
+  // ── Load + render products ──
+  function loadProducts(){
+    var url = "/api/products?page=" + state.page + "&pageSize=" + state.pageSize
+      + (state.q ? "&q=" + encodeURIComponent(state.q) : "");
+
+    resultStat.textContent = "Loading…";
+
+    fetch(url, { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) { toast("Couldn't load products."); return; }
+        state.total = data.total;
+        renderRows(data.items);
+        var maxPage = Math.max(1, Math.ceil(data.total / state.pageSize));
+        pageLabel.textContent = "Page " + state.page + " of " + maxPage;
+        prevBtn.disabled = state.page <= 1;
+        nextBtn.disabled = state.page >= maxPage;
+        resultStat.textContent = data.total.toLocaleString() + " product" + (data.total === 1 ? "" : "s")
+          + (state.q ? " matching \"" + state.q + "\"" : "");
+        emptyState.style.display = data.items.length ? "none" : "block";
+      })
+      .catch(function(){ toast("Network error loading products."); });
+  }
+
+  function renderRows(items){
+    tbody.innerHTML = "";
+    items.forEach(function(p){
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td class="cell-id mono">' + escapeHtml(p.id) + '</td>' +
+        '<td><input type="text" class="name-input" data-field="name" value="' + escapeAttr(p.name) + '" /></td>' +
+        '<td><input type="text" data-field="unit" value="' + escapeAttr(p.unit || "") + '" style="width:90px;" /></td>' +
+        '<td><input type="number" class="num" data-field="price" value="' + p.price + '" min="0" /></td>' +
+        '<td><input type="number" class="num" data-field="mrp" value="' + p.mrp + '" min="0" /></td>' +
+        '<td><input type="number" class="num" data-field="stock" value="' + p.stock + '" min="0" />' +
+          (p.stock === 0 ? '<span class="badge-oos">OOS</span>' : '') + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button class="btn-save" data-action="save">Save</button>' +
+          '<span class="badge-saved">Saved</span>' +
+          '<button class="btn-del" data-action="delete">Delete</button>' +
+        '</div></td>';
+      tr.dataset.id = p.id;
+      tbody.appendChild(tr);
+    });
+  }
+
+  tbody.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    var tr = btn.closest("tr");
+    var id = tr.dataset.id;
+
+    if (btn.dataset.action === "save") {
+      var updates = { id: id };
+      tr.querySelectorAll("[data-field]").forEach(function(input){
+        updates[input.dataset.field] = input.type === "number" ? Number(input.value) : input.value;
+      });
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      fetch("/api/products", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: [updates] })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          btn.disabled = false;
+          btn.textContent = "Save";
+          if (data.ok) {
+            var savedBadge = tr.querySelector(".badge-saved");
+            savedBadge.classList.add("show");
+            setTimeout(function(){ savedBadge.classList.remove("show"); }, 1500);
+            var stockInput = tr.querySelector('[data-field="stock"]');
+            var oosBadge = tr.querySelector(".badge-oos");
+            if (Number(stockInput.value) === 0 && !oosBadge) {
+              var span = document.createElement("span");
+              span.className = "badge-oos"; span.textContent = "OOS";
+              stockInput.parentElement.appendChild(span);
+            } else if (Number(stockInput.value) > 0 && oosBadge) {
+              oosBadge.remove();
+            }
+          } else {
+            toast("Couldn't save: " + (data.error || "unknown error"));
+          }
+        }).catch(function(){
+          btn.disabled = false;
+          btn.textContent = "Save";
+          toast("Network error saving.");
+        });
+    }
+
+    if (btn.dataset.action === "delete") {
+      if (!window.confirm("Delete this product? This can't be undone.")) return;
+      fetch("/api/products?id=" + encodeURIComponent(id), {
+        method: "DELETE",
+        credentials: "include"
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) {
+            toast("Product deleted.");
+            loadProducts();
+          } else {
+            toast("Couldn't delete: " + (data.error || "unknown error"));
+          }
+        }).catch(function(){ toast("Network error deleting."); });
+    }
+  });
+
+  function escapeHtml(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c];
+    });
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TABS
+  // ═══════════════════════════════════════════════════════════════
+  var catTabLoaded = false;
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+      document.querySelectorAll(".tab-panel").forEach(function(p){ p.classList.remove("active"); });
+      btn.classList.add("active");
+      document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+      if (btn.dataset.tab === "categories") {
+        loadTaxonomy();
+        loadCatProducts();
+        catTabLoaded = true;
+      }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // CATEGORIES & PHOTOS TAB
+  // ═══════════════════════════════════════════════════════════════
+  var catState = { page: 1, pageSize: 50, q: "", status: "", total: 0 };
+  var catSelected = new Set();
+  var taxonomyTree = {};
+
+  var catTbody = document.getElementById("cat-tbody");
+  var catEmptyState = document.getElementById("cat-empty-state");
+  var catResultStat = document.getElementById("cat-result-stat");
+  var catPageLabel = document.getElementById("cat-page-label");
+  var catPrevBtn = document.getElementById("cat-prev-page-btn");
+  var catNextBtn = document.getElementById("cat-next-page-btn");
+  var catSearchInput = document.getElementById("cat-search-input");
+  var catStatusFilter = document.getElementById("cat-status-filter");
+  var catSelCountEl = document.getElementById("cat-sel-count");
+  var assignBtn = document.getElementById("assign-btn");
+  var treeView = document.getElementById("tree-view");
+  var photoFileInput = document.getElementById("photo-file-input");
+  var pendingPhotoId = null;
+
+  var catSelectEl = document.getElementById("cat-select");
+  var catNewEl = document.getElementById("cat-new");
+  var subSelectEl = document.getElementById("sub-select");
+  var subNewEl = document.getElementById("sub-new");
+  var microSelectEl = document.getElementById("micro-select");
+  var microNewEl = document.getElementById("micro-new");
+
+  function loadTaxonomy(){
+    fetch("/api/taxonomy", { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) { toast("Couldn't load categories."); return; }
+        taxonomyTree = data.tree;
+        renderTree();
+        populateCatDropdown();
+      })
+      .catch(function(){ toast("Network error loading categories."); });
+  }
+
+  function renderTree(){
+    var cats = Object.keys(taxonomyTree).sort();
+    if (!cats.length) {
+      treeView.innerHTML = '<div class="tree-empty">No categories created yet. Select some products and assign your first one.</div>';
+      return;
+    }
+    treeView.innerHTML = cats.map(function(c){
+      var catRow = '<div class="tree-row"><span class="tname">📁 ' + escapeHtml(c) + '</span><span class="tcount">' + taxonomyTree[c].count + '</span></div>';
+      var subRows = Object.keys(taxonomyTree[c].subs).sort().map(function(s){
+        return '<div class="tree-row" style="padding-left:16px;"><span class="tname">· ' + escapeHtml(s) + '</span><span class="tcount">' + taxonomyTree[c].subs[s].count + '</span></div>';
+      }).join("");
+      return catRow + subRows;
+    }).join("");
+  }
+
+  function populateCatDropdown(){
+    var prev = catSelectEl.value;
+    catSelectEl.innerHTML = '<option value="">— select existing —</option>' +
+      Object.keys(taxonomyTree).sort().map(function(c){
+        return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + ' (' + taxonomyTree[c].count + ')</option>';
+      }).join("");
+    if (prev) catSelectEl.value = prev;
+    populateSubDropdown();
+  }
+
+  function populateSubDropdown(){
+    var cat = catSelectEl.value || catNewEl.value.trim().toLowerCase();
+    var subs = (cat && taxonomyTree[cat]) ? taxonomyTree[cat].subs : {};
+    var prev = subSelectEl.value;
+    subSelectEl.innerHTML = '<option value="">— none / select —</option>' +
+      Object.keys(subs).sort().map(function(s){
+        return '<option value="' + escapeAttr(s) + '">' + escapeHtml(s) + ' (' + subs[s].count + ')</option>';
+      }).join("");
+    if (prev) subSelectEl.value = prev;
+    populateMicroDropdown();
+  }
+
+  function populateMicroDropdown(){
+    var cat = catSelectEl.value || catNewEl.value.trim().toLowerCase();
+    var sub = subSelectEl.value || subNewEl.value.trim().toLowerCase();
+    var micros = (cat && taxonomyTree[cat] && sub && taxonomyTree[cat].subs[sub]) ? taxonomyTree[cat].subs[sub].micros : {};
+    microSelectEl.innerHTML = '<option value="">— none / select —</option>' +
+      Object.keys(micros).sort().map(function(m){
+        return '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + ' (' + micros[m] + ')</option>';
+      }).join("");
+  }
+
+  catSelectEl.addEventListener("change", function(){ catNewEl.value = ""; populateSubDropdown(); });
+  catNewEl.addEventListener("input", function(){ catSelectEl.value = ""; populateSubDropdown(); });
+  subSelectEl.addEventListener("change", function(){ subNewEl.value = ""; populateMicroDropdown(); });
+  subNewEl.addEventListener("input", function(){ subSelectEl.value = ""; populateMicroDropdown(); });
+
+  function loadCatProducts(){
+    var url = "/api/products?page=" + catState.page + "&pageSize=" + catState.pageSize
+      + (catState.q ? "&q=" + encodeURIComponent(catState.q) : "")
+      + (catState.status ? "&status=" + catState.status : "");
+
+    catResultStat.textContent = "Loading…";
+
+    fetch(url, { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) { toast("Couldn't load products."); return; }
+        catState.total = data.total;
+        renderCatRows(data.items);
+        var maxPage = Math.max(1, Math.ceil(data.total / catState.pageSize));
+        catPageLabel.textContent = "Page " + catState.page + " of " + maxPage;
+        catPrevBtn.disabled = catState.page <= 1;
+        catNextBtn.disabled = catState.page >= maxPage;
+        catResultStat.textContent = data.total.toLocaleString() + " product" + (data.total === 1 ? "" : "s");
+        catEmptyState.style.display = data.items.length ? "none" : "block";
+      })
+      .catch(function(){ toast("Network error loading products."); });
+  }
+
+  function categoryChip(p){
+    if (!p.category || p.category === "general") {
+      return '<span class="chip chip-uncat">Uncategorized</span>';
+    }
+    var parts = [p.category];
+    if (p.sub) parts.push(p.sub);
+    if (p.micro) parts.push(p.micro);
+    return '<span class="chip chip-done" title="' + escapeAttr(parts.join(" › ")) + '">' + escapeHtml(parts.join(" › ")) + '</span>';
+  }
+
+  function renderCatRows(items){
+    catTbody.innerHTML = "";
+    items.forEach(function(p){
+      var tr = document.createElement("tr");
+      if (catSelected.has(p.id)) tr.classList.add("row-checked");
+      tr.dataset.id = p.id;
+      tr.innerHTML =
+        '<td><input type="checkbox" class="checkbox cat-checkbox" data-id="' + p.id + '" ' + (catSelected.has(p.id) ? "checked" : "") + '></td>' +
+        '<td class="thumb-cell"><span class="thumb-wrap" data-id="' + p.id + '">' +
+          '<img class="thumb" src="/api/product-image?id=' + encodeURIComponent(p.id) + '" alt="" />' +
+          '<button type="button" class="thumb-del" title="Remove photo">×</button>' +
+        '</span></td>' +
+        '<td class="pname">' + escapeHtml(p.name) + '</td>' +
+        '<td>₹' + p.price + '</td>' +
+        '<td>' + categoryChip(p) + '</td>';
+      catTbody.appendChild(tr);
+
+      var img = tr.querySelector("img.thumb");
+      var wrap = tr.querySelector(".thumb-wrap");
+      img.addEventListener("error", function(){
+        wrap.classList.remove("has-photo");
+        img.style.display = "none";
+        if (!wrap.querySelector(".thumb-placeholder")) {
+          var ph = document.createElement("div");
+          ph.className = "thumb-placeholder";
+          ph.textContent = "＋";
+          ph.title = "Add photo";
+          wrap.insertBefore(ph, wrap.firstChild);
+        }
+      });
+      img.addEventListener("load", function(){
+        wrap.classList.add("has-photo");
+      });
+    });
+    updateCatSelCount();
+  }
+
+  catTbody.addEventListener("click", function(e){
+    var wrap = e.target.closest(".thumb-wrap");
+    if (wrap && !e.target.classList.contains("thumb-del")) {
+      pendingPhotoId = wrap.dataset.id;
+      photoFileInput.value = "";
+      photoFileInput.click();
+      return;
+    }
+    if (e.target.classList.contains("thumb-del")) {
+      var id = e.target.closest(".thumb-wrap").dataset.id;
+      if (!window.confirm("Remove this product's photo?")) return;
+      fetch("/api/product-image?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "include" })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) {
+            toast("Photo removed.");
+            var wrapEl = e.target.closest(".thumb-wrap");
+            var imgEl = wrapEl.querySelector("img.thumb");
+            imgEl.src = "/api/product-image?id=" + encodeURIComponent(id) + "&t=" + Date.now();
+          } else {
+            toast("Couldn't remove photo.");
+          }
+        }).catch(function(){ toast("Network error removing photo."); });
+    }
+  });
+
+  catTbody.addEventListener("change", function(e){
+    if (e.target.classList.contains("cat-checkbox")) {
+      var id = e.target.dataset.id;
+      if (e.target.checked) catSelected.add(id); else catSelected.delete(id);
+      e.target.closest("tr").classList.toggle("row-checked", e.target.checked);
+      updateCatSelCount();
+    }
+  });
+
+  photoFileInput.addEventListener("change", function(){
+    var file = photoFileInput.files && photoFileInput.files[0];
+    if (!file || !pendingPhotoId) return;
+    if (!/^image\//.test(file.type)) { toast("Please choose an image file."); return; }
+    if (file.size > 4 * 1024 * 1024) { toast("Image is too large — please choose one under 4MB."); return; }
+
+    var id = pendingPhotoId;
+    var reader = new FileReader();
+    reader.onload = function(){
+      fetch("/api/product-image", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, dataUrl: reader.result })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) {
+            toast("Photo saved.");
+            var wrap = catTbody.querySelector('.thumb-wrap[data-id="' + CSS.escape(id) + '"]');
+            if (wrap) {
+              var img = wrap.querySelector("img.thumb");
+              img.style.display = "";
+              var ph = wrap.querySelector(".thumb-placeholder");
+              if (ph) ph.remove();
+              img.src = "/api/product-image?id=" + encodeURIComponent(id) + "&t=" + Date.now();
+            }
+          } else {
+            toast("Couldn't save photo: " + (data.message || data.error || "unknown error"));
+          }
+        }).catch(function(){ toast("Network error uploading photo."); });
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function updateCatSelCount(){
+    catSelCountEl.textContent = catSelected.size + " product" + (catSelected.size === 1 ? "" : "s") + " selected";
+    assignBtn.disabled = catSelected.size === 0;
+  }
+
+  document.getElementById("cat-select-all-btn").addEventListener("click", function(){
+    catTbody.querySelectorAll(".cat-checkbox").forEach(function(cb){
+      cb.checked = true;
+      catSelected.add(cb.dataset.id);
+      cb.closest("tr").classList.add("row-checked");
+    });
+    updateCatSelCount();
+  });
+
+  document.getElementById("cat-clear-sel-btn").addEventListener("click", function(){
+    catSelected.clear();
+    catTbody.querySelectorAll(".cat-checkbox").forEach(function(cb){
+      cb.checked = false;
+      cb.closest("tr").classList.remove("row-checked");
+    });
+    updateCatSelCount();
+  });
+
+  var catSearchTimer;
+  catSearchInput.addEventListener("input", function(){
+    clearTimeout(catSearchTimer);
+    catSearchTimer = setTimeout(function(){
+      catState.q = catSearchInput.value.trim();
+      catState.page = 1;
+      loadCatProducts();
+    }, 300);
+  });
+  catStatusFilter.addEventListener("change", function(){
+    catState.status = catStatusFilter.value;
+    catState.page = 1;
+    loadCatProducts();
+  });
+  catPrevBtn.addEventListener("click", function(){ if (catState.page > 1) { catState.page--; loadCatProducts(); } });
+  catNextBtn.addEventListener("click", function(){
+    var maxPage = Math.max(1, Math.ceil(catState.total / catState.pageSize));
+    if (catState.page < maxPage) { catState.page++; loadCatProducts(); }
+  });
+
+  assignBtn.addEventListener("click", function(){
+    var cat = (catSelectEl.value || catNewEl.value.trim());
+    var sub = (subSelectEl.value || subNewEl.value.trim());
+    var micro = (microSelectEl.value || microNewEl.value.trim());
+    if (!cat) { toast("Pick or type a category first."); return; }
+
+    var updates = [];
+    catSelected.forEach(function(id){
+      updates.push({ id: id, category: cat, sub: sub, micro: micro });
+    });
+
+    assignBtn.disabled = true;
+    assignBtn.textContent = "Assigning…";
+    fetch("/api/products", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: updates })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        assignBtn.textContent = "Assign to Selected";
+        if (data.ok) {
+          toast("Assigned " + data.updated + " product" + (data.updated === 1 ? "" : "s") + " to "
+            + cat + (sub ? " › " + sub : "") + (micro ? " › " + micro : "") + ".");
+          catSelected.clear();
+          catNewEl.value = ""; subNewEl.value = ""; microNewEl.value = "";
+          loadTaxonomy();
+          loadCatProducts();
+        } else {
+          assignBtn.disabled = false;
+          toast("Couldn't assign: " + (data.error || "unknown error"));
+        }
+      }).catch(function(){
+        assignBtn.disabled = false;
+        assignBtn.textContent = "Assign to Selected";
+        toast("Network error assigning category.");
+      });
+  });
+
+})();
+</script>
+</body>
+</html>
