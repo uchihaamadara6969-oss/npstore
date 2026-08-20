@@ -188,6 +188,103 @@
     .cat-layout{flex-direction:column;}
     .cat-sidebar{width:100%; position:static;}
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MOBILE / PHONE LAYOUT (<=700px)
+     Tables become stacked "cards" (one card per row, field label
+     on the left via data-label, value on the right) instead of
+     scrolling sideways. Same markup/IDs as desktop — JS untouched
+     beyond adding data-label attributes to <td>s.
+     ═══════════════════════════════════════════════════════════════ */
+  @media (max-width: 700px){
+    body{ -webkit-text-size-adjust:100%; }
+
+    /* Prevent iOS auto-zoom on focus by keeping form fields >=16px */
+    input[type=text], input[type=number], input[type=password], select{ font-size:16px; }
+
+    /* ── Top bar: stack brand / scrollable tabs / actions ── */
+    header.topbar{ padding:10px 12px; gap:8px; }
+    .topbar .brand{ font-size:14px; order:1; }
+    .tab-nav{
+      order:3; width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    .tab-nav::-webkit-scrollbar{ display:none; }
+    .tab-nav button{ white-space:nowrap; padding:9px 14px; font-size:13px; }
+    .topbar-actions{
+      order:2; width:100%; justify-content:flex-end; flex-wrap:wrap; gap:8px;
+    }
+    .btn-ghost, .btn-green{ padding:9px 13px; font-size:12.5px; }
+
+    main{ padding:14px 10px; max-width:100%; }
+    #tab-categories main{ padding:14px 10px; }
+
+    .toolbar{ flex-direction:column; align-items:stretch; gap:8px; }
+    .search-wrap{ min-width:0; width:100%; }
+    .stat{ text-align:left; }
+    .filter-select{ width:100%; }
+
+    /* Add product panel → single column, full-width fields */
+    .add-grid{ grid-template-columns:1fr !important; gap:10px; }
+    .add-grid button{ width:100%; padding:12px; }
+
+    /* ── Tables → stacked cards ── */
+    .table-wrap{ background:transparent; border:none; box-shadow:none; overflow:visible; }
+    table, thead, tbody, tr, th, td{ display:block; width:100%; }
+    thead{ position:absolute; left:-9999px; top:-9999px; } /* keep for a11y, hide visually */
+    tbody tr{
+      background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:var(--shadow); margin-bottom:12px; padding:10px 14px;
+    }
+    tbody tr:hover{ background:var(--panel); }
+    tbody td{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:9px 0; border-bottom:1px dashed #F1F2F4; text-align:right; width:100%;
+    }
+    tbody td:last-child{ border-bottom:none; }
+    tbody td::before{
+      content:attr(data-label); font-weight:700; font-size:10.5px; text-transform:uppercase;
+      letter-spacing:.03em; color:var(--text-muted); text-align:left; flex-shrink:0;
+    }
+    td input[type=text], td input[type=number]{ max-width:160px; text-align:right; }
+    td input.name-input{ min-width:0; width:100%; max-width:200px; }
+    .row-actions{ width:100%; justify-content:flex-end; }
+    .cell-id{ font-weight:700; }
+
+    /* Products table: name row wraps its own label above the input */
+    tbody td[data-label="Name"]{ align-items:flex-start; }
+    tbody td[data-label="Name"] input{ text-align:left; }
+
+    /* Categories & Photos tab: checkbox + photo + name grouped as a
+       compact header row inside the card, price/category below */
+    #tab-categories tbody td[data-label="Select"],
+    #tab-categories tbody td[data-label="Photo"]{
+      display:inline-flex; width:auto; border-bottom:none; padding:0 6px 0 0;
+    }
+    #tab-categories tbody td[data-label="Select"]::before,
+    #tab-categories tbody td[data-label="Photo"]::before{ content:none; }
+    #tab-categories tbody tr{ display:flex; flex-wrap:wrap; align-items:center; }
+    #tab-categories tbody td[data-label="Name"]{
+      flex:1; min-width:0; border-bottom:none; justify-content:flex-start;
+      font-weight:700; padding:0 0 0 4px;
+    }
+    #tab-categories tbody td[data-label="Name"]::before{ content:none; }
+    #tab-categories tbody td[data-label="Price ₹"],
+    #tab-categories tbody td[data-label="Category"]{
+      flex-basis:100%; border-top:1px dashed #F1F2F4; margin-top:8px; padding-top:8px;
+    }
+
+    /* Orders table: address/items get full width instead of truncating */
+    .ord-addr, .ord-items{ max-width:none; white-space:normal; text-align:right; }
+    .status-select{ width:100%; text-align:right; }
+
+    .pager{ padding:14px 4px; gap:10px; }
+    .pager button{ padding:9px 14px; }
+
+    .login-box{ padding:28px 20px; }
+    .ai-diag-overlay{ padding-top:40px; }
+    .ai-diag-box{ max-width:none; width:calc(100% - 24px); padding:18px; }
+  }
 </style>
 </head>
 <body>
@@ -608,14 +705,14 @@
     items.forEach(function(p){
       var tr = document.createElement("tr");
       tr.innerHTML =
-        '<td class="cell-id mono">' + escapeHtml(p.id) + '</td>' +
-        '<td><input type="text" class="name-input" data-field="name" value="' + escapeAttr(p.name) + '" /></td>' +
-        '<td><input type="text" data-field="unit" value="' + escapeAttr(p.unit || "") + '" style="width:90px;" /></td>' +
-        '<td><input type="number" class="num" data-field="price" value="' + p.price + '" min="0" /></td>' +
-        '<td><input type="number" class="num" data-field="mrp" value="' + p.mrp + '" min="0" /></td>' +
-        '<td><input type="number" class="num" data-field="stock" value="' + p.stock + '" min="0" />' +
+        '<td class="cell-id mono" data-label="ID">' + escapeHtml(p.id) + '</td>' +
+        '<td data-label="Name"><input type="text" class="name-input" data-field="name" value="' + escapeAttr(p.name) + '" /></td>' +
+        '<td data-label="Unit"><input type="text" data-field="unit" value="' + escapeAttr(p.unit || "") + '" style="width:90px;" /></td>' +
+        '<td data-label="Price ₹"><input type="number" class="num" data-field="price" value="' + p.price + '" min="0" /></td>' +
+        '<td data-label="MRP ₹"><input type="number" class="num" data-field="mrp" value="' + p.mrp + '" min="0" /></td>' +
+        '<td data-label="Stock"><input type="number" class="num" data-field="stock" value="' + p.stock + '" min="0" />' +
           (p.stock === 0 ? '<span class="badge-oos">OOS</span>' : '') + '</td>' +
-        '<td><div class="row-actions">' +
+        '<td data-label="Actions"><div class="row-actions">' +
           '<button class="btn-save" data-action="save">Save</button>' +
           '<span class="badge-saved">Saved</span>' +
           '<button class="btn-del" data-action="delete">Delete</button>' +
@@ -849,14 +946,14 @@
       if (catSelected.has(p.id)) tr.classList.add("row-checked");
       tr.dataset.id = p.id;
       tr.innerHTML =
-        '<td><input type="checkbox" class="checkbox cat-checkbox" data-id="' + p.id + '" ' + (catSelected.has(p.id) ? "checked" : "") + '></td>' +
-        '<td class="thumb-cell"><span class="thumb-wrap" data-id="' + p.id + '">' +
+        '<td data-label="Select"><input type="checkbox" class="checkbox cat-checkbox" data-id="' + p.id + '" ' + (catSelected.has(p.id) ? "checked" : "") + '></td>' +
+        '<td class="thumb-cell" data-label="Photo"><span class="thumb-wrap" data-id="' + p.id + '">' +
           '<img class="thumb" src="/api/product-image?id=' + encodeURIComponent(p.id) + '" alt="" />' +
           '<button type="button" class="thumb-del" title="Remove photo">×</button>' +
         '</span></td>' +
-        '<td class="pname">' + escapeHtml(p.name) + '</td>' +
-        '<td>₹' + p.price + '</td>' +
-        '<td>' + categoryChip(p) + '</td>';
+        '<td class="pname" data-label="Name">' + escapeHtml(p.name) + '</td>' +
+        '<td data-label="Price ₹">₹' + p.price + '</td>' +
+        '<td data-label="Category">' + categoryChip(p) + '</td>';
       catTbody.appendChild(tr);
 
       var img = tr.querySelector("img.thumb");
@@ -1098,13 +1195,13 @@
       }).join("");
 
       return '<tr>' +
-        '<td class="cell-id">' + escapeHtml(o.id) + '</td>' +
-        '<td style="font-size:12px; color:var(--text-muted);">' + formatOrderDate(o.createdAt) + '</td>' +
-        '<td><div class="ord-customer">' + escapeHtml(o.customerName) + '</div><div class="ord-phone">' + escapeHtml(o.phone) + '</div></td>' +
-        '<td class="ord-addr" title="' + escapeAttr(o.address) + '">' + escapeHtml(o.address) + '</td>' +
-        '<td class="ord-items" title="' + escapeAttr(itemsSummary) + '">' + itemsSummary + '</td>' +
-        '<td>₹' + Number(o.total || 0).toLocaleString("en-IN") + '</td>' +
-        '<td><select class="status-select st-' + o.status + '" data-id="' + escapeAttr(o.id) + '">' + statusOptions + '</select></td>' +
+        '<td class="cell-id" data-label="Order">' + escapeHtml(o.id) + '</td>' +
+        '<td data-label="Date" style="font-size:12px; color:var(--text-muted);">' + formatOrderDate(o.createdAt) + '</td>' +
+        '<td data-label="Customer"><div class="ord-customer">' + escapeHtml(o.customerName) + '</div><div class="ord-phone">' + escapeHtml(o.phone) + '</div></td>' +
+        '<td class="ord-addr" data-label="Address" title="' + escapeAttr(o.address) + '">' + escapeHtml(o.address) + '</td>' +
+        '<td class="ord-items" data-label="Items" title="' + escapeAttr(itemsSummary) + '">' + itemsSummary + '</td>' +
+        '<td data-label="Total ₹">₹' + Number(o.total || 0).toLocaleString("en-IN") + '</td>' +
+        '<td data-label="Status"><select class="status-select st-' + o.status + '" data-id="' + escapeAttr(o.id) + '">' + statusOptions + '</select></td>' +
         '</tr>';
     }).join("");
 
