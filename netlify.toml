@@ -58,6 +58,50 @@
   to     = "/.netlify/functions/orders"
   status = 200
 
+# Order-status / My-Orders lookups, and the staff order-alert app's
+# API (see order-status.mjs, orders-by-phone.mjs, staff-*.mjs). Same
+# belt-and-suspenders pattern as everything above — each function also
+# declares its own `export const config = { path: ... }`.
+[[redirects]]
+  from   = "/api/order-status"
+  to     = "/.netlify/functions/order-status"
+  status = 200
+
+[[redirects]]
+  from   = "/api/orders-by-phone"
+  to     = "/.netlify/functions/orders-by-phone"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-login"
+  to     = "/.netlify/functions/staff-login"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-logout"
+  to     = "/.netlify/functions/staff-logout"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-me"
+  to     = "/.netlify/functions/staff-me"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-accounts"
+  to     = "/.netlify/functions/staff-accounts"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-orders"
+  to     = "/.netlify/functions/staff-orders"
+  status = 200
+
+[[redirects]]
+  from   = "/api/staff-orders/accept"
+  to     = "/.netlify/functions/staff-orders-accept"
+  status = 200
+
 # Note: Netlify already forces HTTPS on every *.netlify.app domain (and any
 # custom domain with SSL enabled) automatically, so no explicit HTTP→HTTPS
 # redirect is needed here.
