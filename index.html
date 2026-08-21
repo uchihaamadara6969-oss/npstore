@@ -5937,8 +5937,42 @@ async function loadProductsFromApi(){
   }
 }
 
+/* ── SITE STATUS (developer kill-switches) ─────────
+   Checked once on load, before anything else, so a maintenance-mode
+   site shows the block screen instead of a half-loaded storefront.
+   This is a courtesy for real visitors — the actual enforcement that
+   can't be bypassed lives server-side (see products.mjs/orders.mjs/
+   ai-chef.mjs), so even if this check is skipped somehow, nothing
+   sensitive is exposed. */
+var siteFeatureFlags = { ordersEnabled: true, aiChefEnabled: true };
+async function checkSiteStatus(){
+  try {
+    var res = await fetch("/api/site-status");
+    var data = await res.json();
+    if (!data) return true;
+    siteFeatureFlags.ordersEnabled = data.ordersEnabled !== false;
+    siteFeatureFlags.aiChefEnabled = data.aiChefEnabled !== false;
+    if (data.maintenanceMode) {
+      var overlay = document.getElementById("site-maintenance-overlay");
+      var msgEl = document.getElementById("site-maintenance-message");
+      if (msgEl && data.maintenanceMessage) msgEl.textContent = data.maintenanceMessage;
+      if (overlay) overlay.style.display = "flex";
+      return false; // tells the caller not to bother loading products
+    }
+    return true;
+  } catch (err) {
+    // A site-status hiccup should never itself block the storefront —
+    // fail open, same policy as the backend's own site-status.mjs.
+    console.error("[NP Mart] site-status check failed:", err);
+    return true;
+  }
+}
+
 /* ── EVENT BINDINGS & INIT ───────────────── */
 document.addEventListener("DOMContentLoaded", async () => {
+  var siteOpen = await checkSiteStatus();
+  if (!siteOpen) return; // maintenance overlay is up; nothing else should run
+
   loadNpWishlist();
 
   /* Search enter key auto-scroll — only the two real search boxes
@@ -6075,7 +6109,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }).catch(function(err){
         console.error("[Orders] place order failed:", err);
         if (errEl) {
-          errEl.textContent = "Couldn't place your order — please check your connection and try again, or call the store directly.";
+          // Surface the server's actual reason when it gave one (e.g.
+          // "not accepting orders right now") instead of a generic
+          // connection-error message that would be misleading here.
+          errEl.textContent = (err && err.message) ||
+            "Couldn't place your order — please check your connection and try again, or call the store directly.";
           errEl.style.display = "block";
         }
       }).finally(function(){
@@ -8375,6 +8413,21 @@ setTimeout(function(){
         Close
       </button>
     </div>
+  </div>
+</div>
+
+<!-- Maintenance / "server busy" full-screen block — hidden by default,
+     shown by checkSiteStatus() (see bottom of the main script) when the
+     developer panel's maintenance switch is on. Deliberately placed
+     last in the DOM with a very high z-index so it covers absolutely
+     everything, including modals, on top. The real enforcement lives
+     server-side in products.mjs/orders.mjs/ai-chef.mjs — this is just
+     the friendly version of what those endpoints already refuse to do. -->
+<div id="site-maintenance-overlay" style="display:none; position:fixed; inset:0; z-index:99999; background:#0B0D12; color:#E8EAF0; align-items:center; justify-content:center; text-align:center; padding:24px; font-family:inherit;">
+  <div style="max-width:380px;">
+    <div style="font-size:40px; margin-bottom:14px;">🛠️</div>
+    <h2 style="margin:0 0 10px; font-size:19px;">We'll be right back</h2>
+    <p id="site-maintenance-message" style="margin:0; color:#8A90A0; font-size:14px; line-height:1.6;">NP Mart is temporarily closed for maintenance. Please check back soon.</p>
   </div>
 </div>
 </body>

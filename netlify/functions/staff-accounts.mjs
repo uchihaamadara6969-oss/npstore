@@ -25,7 +25,7 @@
 
 import crypto from "node:crypto";
 import { getStore } from "@netlify/blobs";
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 
 const STORE_NAME = "npmart-staff";
 const BLOB_KEY = "staff.json";
@@ -93,10 +93,8 @@ export default async (req) => {
 async function handle(req) {
   // Every operation here is admin-only — staff accounts are managed
   // by the shop owner, not by staff themselves.
-  const session = verifySession(req);
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
 
   const store = getStore(STORE_NAME);
   const url = new URL(req.url);

@@ -1,14 +1,14 @@
 /* NP MART — ADMIN SESSION CHECK: lets the admin page ask "am I still
    logged in?" on load without touching product data. */
 
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 
 export default async (req) => {
-  const session = verifySession(req);
-  if (!session) {
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) {
     return Response.json({ ok: false, loggedIn: false }, { status: 401 });
   }
-  return Response.json({ ok: true, loggedIn: true, expiresAt: session.exp });
+  return Response.json({ ok: true, loggedIn: true, role: auth.role });
 };
 
 export const config = {

@@ -26,7 +26,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { getStore } from "@netlify/blobs";
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 import { STORE_NAME, loadCatalog, saveCatalog } from "./_lib/catalog.mjs";
 import { runMargImport } from "./_lib/margImport.mjs";
 
@@ -47,10 +47,8 @@ async function handle(req) {
     return Response.json({ ok: false, error: "method_not_allowed" }, { status: 405 });
   }
 
-  const session = verifySession(req);
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
 
   let body;
   try {

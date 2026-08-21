@@ -46,9 +46,10 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { getStore } from "@netlify/blobs";
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 import { sendStaffPush } from "./_lib/push.mjs";
 import { STORE_NAME as CATALOG_STORE_NAME, adjustStock } from "./_lib/catalog.mjs";
+import { STORE_NAME as SITE_CONFIG_STORE_NAME, loadSiteConfig } from "./_lib/siteConfig.mjs";
 
 const STORE_NAME = "npmart-orders";
 const BLOB_KEY = "orders.json";
@@ -119,6 +120,26 @@ async function handle(req) {
 
   // ─── Public: create an order (checkout) ───────────────────────────
   if (req.method === "POST") {
+    // Developer kill-switches — "server busy" blocks everything,
+    // "orders off" blocks just checkout while browsing still works.
+    const siteConfig = await loadSiteConfig(getStore(SITE_CONFIG_STORE_NAME));
+    if (siteConfig.maintenanceMode) {
+      return Response.json(
+        {
+          ok: false,
+          error: "maintenance",
+          message: siteConfig.maintenanceMessage || "We're temporarily closed for maintenance — please check back soon."
+        },
+        { status: 503 }
+      );
+    }
+    if (siteConfig.ordersEnabled === false) {
+      return Response.json(
+        { ok: false, error: "orders_disabled", message: "We're not accepting orders right now — please check back soon or call the store directly." },
+        { status: 503 }
+      );
+    }
+
     let body;
     try {
       body = await req.json();
@@ -192,11 +213,9 @@ async function handle(req) {
     return Response.json({ ok: true, id: order.id }, { status: 201 });
   }
 
-  // ─── Everything below reads/writes customer PII — admin only ──────
-  const session = verifySession(req);
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  // ─── Everything below reads/writes customer PII — admin or dev ────
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
 
   if (req.method === "GET") {
     const orders = await loadOrders(store);

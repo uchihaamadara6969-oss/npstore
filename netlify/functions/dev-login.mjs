@@ -1,45 +1,34 @@
 /* ═══════════════════════════════════════════════════════════════════
-   NP MART — ADMIN LOGIN
-   Checks the password against ADMIN_PASSWORD and, if correct, hands
-   back a signed session cookie. See _lib/auth.mjs for the full auth
-   design and the env vars this needs.
+   NP MART — DEVELOPER LOGIN
+   Checks the password against DEV_PASSWORD (separate from
+   ADMIN_PASSWORD) and, if correct, hands back a signed npmart_dev
+   cookie. See _lib/auth.mjs for the full developer-session design.
+
+   Deliberately NEVER gated by any site-config toggle (not
+   maintenanceMode, not adminPanelEnabled) — this is the one door that
+   must always open, or a toggle flipped the wrong way could lock you
+   out of your own site with no way back in short of clearing Blobs
+   by hand.
    ═══════════════════════════════════════════════════════════════════ */
 
 import crypto from "node:crypto";
-import { getStore } from "@netlify/blobs";
-import { SESSION_TTL_MS, sessionCookieHeader } from "./_lib/auth.mjs";
-import { STORE_NAME as SITE_CONFIG_STORE_NAME, loadSiteConfig } from "./_lib/siteConfig.mjs";
+import { DEV_SESSION_TTL_MS, devSessionCookieHeader } from "./_lib/auth.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") {
     return Response.json({ ok: false, error: "method_not_allowed" }, { status: 405 });
   }
 
-  // Developer switch — turning the admin panel off blocks NEW admin
-  // logins here; requireAdminOrDev() also invalidates any admin
-  // session already in use, so this isn't the only enforcement point.
-  try {
-    const siteConfig = await loadSiteConfig(getStore(SITE_CONFIG_STORE_NAME));
-    if (siteConfig.adminPanelEnabled === false) {
-      return Response.json(
-        { ok: false, error: "admin_panel_disabled", message: "The admin panel has been temporarily turned off." },
-        { status: 503 }
-      );
-    }
-  } catch (err) {
-    console.error("[admin-login] site config check failed", err);
-  }
-
   const secret = process.env.ADMIN_SESSION_SECRET;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const devPassword = process.env.DEV_PASSWORD;
 
-  if (!secret || !adminPassword) {
+  if (!secret || !devPassword) {
     return Response.json(
       {
         ok: false,
         error: "not_configured",
         message:
-          "Set ADMIN_PASSWORD and ADMIN_SESSION_SECRET in Netlify (Site config > Environment variables, scope: Functions), then redeploy."
+          "Set DEV_PASSWORD and ADMIN_SESSION_SECRET in Netlify (Site config > Environment variables, scope: Functions), then redeploy."
       },
       { status: 503 }
     );
@@ -57,7 +46,7 @@ export default async (req) => {
   // Constant-time comparison so response timing can't leak how many
   // characters matched.
   const a = Buffer.from(password);
-  const b = Buffer.from(adminPassword);
+  const b = Buffer.from(devPassword);
   const match = a.length === b.length && crypto.timingSafeEqual(a, b);
 
   if (!match) {
@@ -65,12 +54,12 @@ export default async (req) => {
   }
 
   const headers = new Headers({ "Content-Type": "application/json" });
-  headers.append("Set-Cookie", sessionCookieHeader(secret, SESSION_TTL_MS / 1000));
+  headers.append("Set-Cookie", devSessionCookieHeader(secret, DEV_SESSION_TTL_MS / 1000));
 
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
 };
 
 export const config = {
-  path: "/api/admin-login",
+  path: "/api/dev-login",
   method: ["POST"]
 };

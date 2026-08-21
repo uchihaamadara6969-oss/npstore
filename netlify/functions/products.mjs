@@ -45,8 +45,9 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { getStore } from "@netlify/blobs";
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 import { STORE_NAME, loadCatalog, saveCatalog } from "./_lib/catalog.mjs";
+import { STORE_NAME as SITE_CONFIG_STORE_NAME, loadSiteConfig } from "./_lib/siteConfig.mjs";
 
 const MAX_PAGE_SIZE = 200;
 
@@ -102,6 +103,21 @@ async function handle(req) {
 
   // ─── Public read ────────────────────────────────────────────────
   if (req.method === "GET") {
+    // Developer "server busy" kill-switch — blocks the catalog at the
+    // source so the storefront can't show/sell anything even if a
+    // request bypasses the frontend's own maintenance-mode overlay.
+    const siteConfig = await loadSiteConfig(getStore(SITE_CONFIG_STORE_NAME));
+    if (siteConfig.maintenanceMode) {
+      return Response.json(
+        {
+          ok: false,
+          error: "maintenance",
+          message: siteConfig.maintenanceMessage || "We're temporarily closed for maintenance — please check back soon."
+        },
+        { status: 503 }
+      );
+    }
+
     const catalog = await loadCatalog(store);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const category = (url.searchParams.get("category") || "").trim().toLowerCase();
@@ -142,11 +158,9 @@ async function handle(req) {
     });
   }
 
-  // ─── Everything below writes data — admin session required ───────
-  const session = verifySession(req);
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  // ─── Everything below writes data — admin or developer session ───
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
 
   if (req.method === "PATCH") {
     let body;

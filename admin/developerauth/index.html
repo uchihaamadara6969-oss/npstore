@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<title>NP Mart — Developer</title>
+<style>
+  :root{
+    --bg:#0B0D12; --panel:#12151C; --panel2:#171B24; --border:#262B36;
+    --text:#E8EAF0; --text-muted:#8A90A0; --accent:#5B8CFF;
+    --danger:#FF5C6C; --danger-bg:#2A1418; --ok:#3DDC84; --ok-bg:#0F2A1C;
+    --warn:#FFB454; --warn-bg:#2A2010;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); min-height:100vh;}
+  .wrap{max-width:760px; margin:0 auto; padding:28px 18px 80px;}
+
+  /* ── Login screen ── */
+  #login-screen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:18px;
+  }
+  #login-screen .box{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:32px;
+    width:100%; max-width:360px;
+  }
+  #login-screen h1{font-size:17px; margin:0 0 4px; letter-spacing:.3px;}
+  #login-screen .tag{color:var(--text-muted); font-size:12.5px; margin:0 0 20px;}
+  #login-screen input{
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:9px; font-size:14px; margin-bottom:12px;
+  }
+  #login-screen input:focus{outline:none; border-color:var(--accent);}
+  #login-screen button{
+    width:100%; background:var(--accent); color:#0B0D12; border:none; padding:11px; border-radius:9px;
+    font-weight:700; font-size:14px; cursor:pointer;
+  }
+  #login-screen button:disabled{opacity:.6; cursor:default;}
+  .err{color:var(--danger); font-size:12.5px; margin-top:10px; display:none;}
+
+  /* ── Dashboard ── */
+  #dash-screen{display:none;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 0; margin-bottom:22px;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{font-weight:800; font-size:14px; letter-spacing:.4px; display:flex; align-items:center; gap:8px;}
+  .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--accent);}
+  .logout-btn{
+    background:transparent; border:1px solid var(--border); color:var(--text-muted);
+    padding:7px 14px; border-radius:8px; font-size:12.5px; cursor:pointer;
+  }
+  .logout-btn:hover{color:var(--text); border-color:var(--text-muted);}
+
+  .status-banner{
+    display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:12px; margin-bottom:24px;
+    font-weight:700; font-size:13.5px;
+  }
+  .status-banner.live{background:var(--ok-bg); color:var(--ok); border:1px solid #1E4A32;}
+  .status-banner.down{background:var(--danger-bg); color:var(--danger); border:1px solid #4A1E24;}
+  .status-dot{width:9px; height:9px; border-radius:50%; background:currentColor; flex:none;}
+
+  .section{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:18px;}
+  .section h2{font-size:13.5px; margin:0 0 4px; letter-spacing:.2px;}
+  .section .desc{color:var(--text-muted); font-size:12px; margin:0 0 16px; line-height:1.5;}
+
+  .switch-row{
+    display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 0;
+    border-top:1px solid var(--border);
+  }
+  .switch-row:first-of-type{border-top:none; padding-top:0;}
+  .switch-row .label{font-size:13.5px; font-weight:600;}
+  .switch-row .sub{color:var(--text-muted); font-size:11.5px; margin-top:2px;}
+
+  .toggle{position:relative; width:44px; height:25px; flex:none;}
+  .toggle input{opacity:0; width:0; height:0;}
+  .toggle .slider{
+    position:absolute; inset:0; background:#33394A; border-radius:999px; cursor:pointer; transition:.15s;
+  }
+  .toggle .slider:before{
+    content:""; position:absolute; width:19px; height:19px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s;
+  }
+  .toggle input:checked + .slider{background:var(--ok);}
+  .toggle input:checked + .slider:before{transform:translateX(19px);}
+  .toggle.danger input:checked + .slider{background:var(--danger);}
+
+  textarea#maint-msg{
+    width:100%; min-height:70px; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:10px 12px; font-size:13px; font-family:inherit; resize:vertical; margin-top:10px;
+  }
+  textarea#maint-msg:focus{outline:none; border-color:var(--accent);}
+  .save-hint{color:var(--text-muted); font-size:11px; margin-top:8px;}
+
+  .btn{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:10px 16px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); color:#0B0D12; border:none;}
+  .btn:disabled{opacity:.5; cursor:default;}
+
+  #diag-body{margin-top:14px; display:none;}
+  .diag-row{
+    display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border);
+    font-size:12.5px;
+  }
+  .diag-row:first-child{border-top:none;}
+  .diag-ok{color:var(--ok);} .diag-bad{color:var(--danger);}
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
+    background:#1B1F29; border:1px solid var(--border); color:var(--text); padding:11px 18px; border-radius:10px;
+    font-size:13px; transition:.2s; pointer-events:none; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="box">
+    <h1>NP Mart — Developer Access</h1>
+    <p class="tag">This is not the admin panel. Higher authority, higher risk — every switch here can take the whole site down.</p>
+    <form id="login-form">
+      <input type="password" id="login-password" placeholder="Developer password" autocomplete="off" required />
+      <button type="submit" id="login-btn">Enter</button>
+      <div class="err" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="dash-screen">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span>NP MART — DEVELOPER</div>
+      <button class="logout-btn" id="logout-btn">Log out</button>
+    </div>
+
+    <div class="status-banner" id="status-banner">Checking site status…</div>
+
+    <div class="section">
+      <h2>Site kill-switches</h2>
+      <p class="desc">These are enforced on the server, not just hidden in the UI — turning one off blocks the real API endpoint, so it can't be bypassed by reloading the page or calling the API directly.</p>
+
+      <div class="switch-row">
+        <div>
+          <div class="label">🔴 Server busy (maintenance mode)</div>
+          <div class="sub">Blocks the entire storefront — products won't load, checkout won't work, nothing sells. Use for real maintenance only.</div>
+        </div>
+        <label class="toggle danger"><input type="checkbox" id="tg-maintenance" /><span class="slider"></span></label>
+      </div>
+
+      <div class="switch-row">
+        <div>
+          <div class="label">Order receiving</div>
+          <div class="sub">Turn off to stop new checkouts while still letting people browse products.</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="tg-orders" /><span class="slider"></span></label>
+      </div>
+
+      <div class="switch-row">
+        <div>
+          <div class="label">AI Chef</div>
+          <div class="sub">Turn off if a provider is misbehaving or you want to cut API usage temporarily.</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="tg-aichef" /><span class="slider"></span></label>
+      </div>
+
+      <div class="switch-row">
+        <div>
+          <div class="label">Admin panel (/admin)</div>
+          <div class="sub">Turn off to lock everyone out of the regular admin panel — including anyone already logged in. You (developer) always keep access.</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="tg-adminpanel" /><span class="slider"></span></label>
+      </div>
+
+      <textarea id="maint-msg" placeholder="Optional message shown to visitors during maintenance mode, e.g. &quot;Back online by 6pm today&quot;"></textarea>
+      <div class="save-hint" id="save-hint">Changes save instantly — no separate save button.</div>
+    </div>
+
+    <div class="section">
+      <h2>Admin panel controls</h2>
+      <p class="desc">Everything in the regular admin panel — products, prices, stock, categories, orders, staff accounts, the Marg import — opens normally in a new tab using this same developer login, even while the admin panel switch above is off.</p>
+      <button class="btn primary" id="open-admin-btn" type="button">Open Admin Panel →</button>
+    </div>
+
+    <div class="section">
+      <h2>Diagnostics</h2>
+      <p class="desc">Runs the same AI Chef key test the admin panel has, straight from here.</p>
+      <button class="btn" id="test-ai-btn" type="button">Test AI Keys</button>
+      <div id="diag-body"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var loginScreen = document.getElementById("login-screen");
+  var dashScreen = document.getElementById("dash-screen");
+  var loginForm = document.getElementById("login-form");
+  var loginError = document.getElementById("login-error");
+  var loginBtn = document.getElementById("login-btn");
+  var toastEl = document.getElementById("toast");
+  var statusBanner = document.getElementById("status-banner");
+  var saveHint = document.getElementById("save-hint");
+
+  var tgMaintenance = document.getElementById("tg-maintenance");
+  var tgOrders = document.getElementById("tg-orders");
+  var tgAiChef = document.getElementById("tg-aichef");
+  var tgAdminPanel = document.getElementById("tg-adminpanel");
+  var maintMsg = document.getElementById("maint-msg");
+
+  var suppressChangeEvents = true; // true while we're populating toggles from the server, so setting .checked doesn't fire a PATCH
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(function(){ toastEl.classList.remove("show"); }, 2400);
+  }
+
+  function showDash(){
+    loginScreen.style.display = "none";
+    dashScreen.style.display = "block";
+    loadSettings();
+  }
+  function showLogin(){
+    dashScreen.style.display = "none";
+    loginScreen.style.display = "flex";
+  }
+
+  // ── Session check on load ──
+  fetch("/api/dev-me", { credentials: "include" })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d && d.loggedIn) showDash(); else showLogin(); })
+    .catch(showLogin);
+
+  loginForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    loginError.style.display = "none";
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Checking…";
+    var password = document.getElementById("login-password").value;
+
+    fetch("/api/dev-login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: password })
+    })
+      .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(res){
+        if (!res.ok || !res.d || !res.d.ok) {
+          loginError.textContent = (res.d && res.d.message) || "Wrong password.";
+          loginError.style.display = "block";
+          return;
+        }
+        document.getElementById("login-password").value = "";
+        showDash();
+      })
+      .catch(function(){
+        loginError.textContent = "Couldn't reach the server — check your connection.";
+        loginError.style.display = "block";
+      })
+      .finally(function(){
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Enter";
+      });
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", function(){
+    fetch("/api/dev-logout", { method: "POST", credentials: "include" }).then(showLogin);
+  });
+
+  document.getElementById("open-admin-btn").addEventListener("click", function(){
+    window.open("/admin/", "_blank");
+  });
+
+  function renderBanner(cfg){
+    if (cfg.maintenanceMode) {
+      statusBanner.className = "status-banner down";
+      statusBanner.innerHTML = '<span class="status-dot"></span> Site is in MAINTENANCE MODE — customers cannot browse or order right now.';
+    } else {
+      var notes = [];
+      if (cfg.ordersEnabled === false) notes.push("orders off");
+      if (cfg.aiChefEnabled === false) notes.push("AI Chef off");
+      if (cfg.adminPanelEnabled === false) notes.push("admin panel off");
+      statusBanner.className = "status-banner live";
+      statusBanner.innerHTML = '<span class="status-dot"></span> Site is live' + (notes.length ? " — but " + notes.join(", ") : "");
+    }
+  }
+
+  function loadSettings(){
+    fetch("/api/dev-settings", { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) { toast("Couldn't load settings."); return; }
+        var cfg = d.config;
+        suppressChangeEvents = true;
+        tgMaintenance.checked = !!cfg.maintenanceMode;
+        tgOrders.checked = cfg.ordersEnabled !== false;
+        tgAiChef.checked = cfg.aiChefEnabled !== false;
+        tgAdminPanel.checked = cfg.adminPanelEnabled !== false;
+        maintMsg.value = cfg.maintenanceMessage || "";
+        renderBanner(cfg);
+        suppressChangeEvents = false;
+      })
+      .catch(function(){ toast("Couldn't load settings."); });
+  }
+
+  function patchSettings(partial, successMsg){
+    saveHint.textContent = "Saving…";
+    fetch("/api/dev-settings", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(partial)
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) { toast("Save failed — try again."); saveHint.textContent = "Changes save instantly — no separate save button."; return; }
+        renderBanner(d.config);
+        toast(successMsg || "Saved.");
+        saveHint.textContent = "Saved just now.";
+        setTimeout(function(){ saveHint.textContent = "Changes save instantly — no separate save button."; }, 3000);
+      })
+      .catch(function(){ toast("Save failed — check your connection."); });
+  }
+
+  [ [tgMaintenance, "maintenanceMode", "Maintenance mode"],
+    [tgOrders, "ordersEnabled", "Order receiving"],
+    [tgAiChef, "aiChefEnabled", "AI Chef"],
+    [tgAdminPanel, "adminPanelEnabled", "Admin panel"]
+  ].forEach(function(row){
+    var el = row[0], field = row[1], label = row[2];
+    el.addEventListener("change", function(){
+      if (suppressChangeEvents) return;
+      var body = {};
+      body[field] = el.checked;
+      patchSettings(body, label + (el.checked ? " turned on." : " turned off."));
+    });
+  });
+
+  var maintMsgTimer = null;
+  maintMsg.addEventListener("input", function(){
+    if (suppressChangeEvents) return;
+    clearTimeout(maintMsgTimer);
+    maintMsgTimer = setTimeout(function(){
+      patchSettings({ maintenanceMessage: maintMsg.value }, "Maintenance message saved.");
+    }, 700);
+  });
+
+  // ── Diagnostics (reuses /api/ai-chef?diag=1, same as the admin panel) ──
+  document.getElementById("test-ai-btn").addEventListener("click", function(){
+    var btn = document.getElementById("test-ai-btn");
+    var body = document.getElementById("diag-body");
+    btn.disabled = true;
+    btn.textContent = "Testing…";
+    body.style.display = "block";
+    body.innerHTML = "Testing…";
+
+    fetch("/api/ai-chef?diag=1", { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok || !Array.isArray(d.results)) {
+          body.innerHTML = '<div class="diag-row diag-bad">' + ((d && d.message) || "Diagnostics failed.") + "</div>";
+          return;
+        }
+        body.innerHTML = d.results.map(function(r){
+          var cls = r.ok ? "diag-ok" : "diag-bad";
+          var text = r.configured === false ? "not configured" : (r.ok ? "working" : (r.detail || "failed"));
+          return '<div class="diag-row"><span>' + (r.label || r.provider || "Provider") + '</span><span class="' + cls + '">' + text + "</span></div>";
+        }).join("");
+      })
+      .catch(function(){ body.innerHTML = '<div class="diag-row diag-bad">Request failed.</div>'; })
+      .finally(function(){ btn.disabled = false; btn.textContent = "Test AI Keys"; });
+  });
+})();
+</script>
+</body>
+</html>

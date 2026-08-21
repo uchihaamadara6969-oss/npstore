@@ -20,7 +20,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { getStore } from "@netlify/blobs";
-import { verifySession } from "./_lib/auth.mjs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
 
 const STORE_NAME = "npmart-images";
 const MAX_BYTES = 4 * 1024 * 1024; // 4MB raw file cap
@@ -75,11 +75,9 @@ async function handle(req) {
     });
   }
 
-  // ─── Everything below writes data — admin session required ───────
-  const session = verifySession(req);
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  // ─── Everything below writes data — admin or developer session ───
+  const auth = await requireAdminOrDev(req);
+  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
 
   if (req.method === "POST") {
     let body;

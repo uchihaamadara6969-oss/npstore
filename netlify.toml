@@ -102,6 +102,35 @@
   to     = "/.netlify/functions/staff-orders-accept"
   status = 200
 
+# Developer panel API (see netlify/functions/dev-login.mjs, dev-logout.mjs,
+# dev-me.mjs, dev-settings.mjs) and the public site-status read that the
+# storefront checks on load (site-status.mjs). Same belt-and-suspenders
+# pattern as everything above.
+[[redirects]]
+  from   = "/api/dev-login"
+  to     = "/.netlify/functions/dev-login"
+  status = 200
+
+[[redirects]]
+  from   = "/api/dev-logout"
+  to     = "/.netlify/functions/dev-logout"
+  status = 200
+
+[[redirects]]
+  from   = "/api/dev-me"
+  to     = "/.netlify/functions/dev-me"
+  status = 200
+
+[[redirects]]
+  from   = "/api/dev-settings"
+  to     = "/.netlify/functions/dev-settings"
+  status = 200
+
+[[redirects]]
+  from   = "/api/site-status"
+  to     = "/.netlify/functions/site-status"
+  status = 200
+
 # Note: Netlify already forces HTTPS on every *.netlify.app domain (and any
 # custom domain with SSL enabled) automatically, so no explicit HTTP→HTTPS
 # redirect is needed here.

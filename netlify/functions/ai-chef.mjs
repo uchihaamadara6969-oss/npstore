@@ -35,7 +35,9 @@
    button calls this. See admin/index.html.
    ═══════════════════════════════════════════════════════════════════ */
 
-import { verifySession } from "./_lib/auth.mjs";
+import { getStore } from "@netlify/blobs";
+import { requireAdminOrDev } from "./_lib/auth.mjs";
+import { STORE_NAME as SITE_CONFIG_STORE_NAME, loadSiteConfig } from "./_lib/siteConfig.mjs";
 
 /* Overall budget. Netlify's synchronous function limit is actually 60s
    (confirmed against current docs — not the 10s/26s figures floating
@@ -313,10 +315,8 @@ export default async (req) => {
       if (url.searchParams.get("diag") !== "1") {
         return Response.json({ ok: false, error: "method_not_allowed" }, { status: 405 });
       }
-      const session = verifySession(req);
-      if (!session) {
-        return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-      }
+      const auth = await requireAdminOrDev(req);
+      if (!auth.ok) return Response.json(auth.body, { status: auth.status });
       const result = await runDiagnostics(process.env.URL);
       return Response.json(result);
     }
@@ -337,6 +337,22 @@ export default async (req) => {
 async function handleChat(req) {
   const startedAt = Date.now();
   const budgetLeft = () => TOTAL_BUDGET_MS - (Date.now() - startedAt);
+
+  // Developer kill-switches — checked before anything else so a
+  // disabled AI Chef never even attempts a provider call.
+  const siteConfig = await loadSiteConfig(getStore(SITE_CONFIG_STORE_NAME));
+  if (siteConfig.maintenanceMode) {
+    return Response.json(
+      { ok: false, error: "maintenance", message: siteConfig.maintenanceMessage || "We're temporarily closed for maintenance — please check back soon." },
+      { status: 503 }
+    );
+  }
+  if (siteConfig.aiChefEnabled === false) {
+    return Response.json(
+      { ok: false, error: "ai_chef_disabled", message: "AI Chef is temporarily turned off." },
+      { status: 503 }
+    );
+  }
 
   let payload;
   try {

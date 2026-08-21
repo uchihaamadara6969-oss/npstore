@@ -27,6 +27,8 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import crypto from "node:crypto";
+import { getStore } from "@netlify/blobs";
+import { STORE_NAME as SITE_CONFIG_STORE_NAME, loadSiteConfig } from "./siteConfig.mjs";
 
 export const COOKIE_NAME = "npmart_admin";
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -156,4 +158,125 @@ export function verifyStaffSession(req) {
   } catch {
     return null;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DEVELOPER SESSIONS (highest authority — separate password, separate
+   cookie, separate from the admin session above)
+   ───────────────────────────────────────────────────────────────────
+   The developer panel (/admin/developerauth/) is where you flip the
+   site-wide kill-switches: maintenance mode, orders on/off, AI Chef
+   on/off, and whether the regular admin panel even works at all.
+   Because that LAST switch can lock the admin panel out, developer
+   sessions must never depend on the admin panel being enabled, and
+   the developer login itself is never gated by anything — there is
+   no toggle that can lock you out of turning the site back on.
+
+   A developer session is also treated as a superset of an admin
+   session everywhere the admin panel writes data (see
+   requireAdminOrDev() below) — so the developer panel gets "every
+   admin panel control" for free by simply reusing the same admin
+   API endpoints, rather than duplicating that UI.
+
+   REQUIRED Netlify environment variables (same place as the others):
+     DEV_PASSWORD   the password for the developer panel — set this
+                     to something different from ADMIN_PASSWORD, and
+                     don't share it with staff.
+   Uses the SAME ADMIN_SESSION_SECRET to sign, for the same reason the
+   staff cookie does (see above) — the cookie name is what separates
+   the tiers, not the secret.
+   ═══════════════════════════════════════════════════════════════════ */
+
+export const DEV_COOKIE_NAME = "npmart_dev";
+export const DEV_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — short-lived on purpose, this is the highest-privilege tier
+
+export function devSessionCookieHeader(secret, maxAgeSeconds) {
+  const payload = Buffer.from(
+    JSON.stringify({ exp: Date.now() + maxAgeSeconds * 1000, dev: true })
+  ).toString("base64url");
+  const token = sign(payload, secret);
+  return `${DEV_COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`;
+}
+
+export function clearDevCookieHeader() {
+  return `${DEV_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
+/**
+ * Returns the decoded session payload if the request carries a valid,
+ * unexpired, correctly-signed DEVELOPER cookie — or null. Deliberately
+ * mirrors verifySession() rather than reusing it, so admin and dev
+ * cookies can never be confused for one another even if the code
+ * changes later.
+ */
+export function verifyDevSession(req) {
+  const secret = process.env.ADMIN_SESSION_SECRET;
+  if (!secret) return null;
+
+  const token = parseCookies(req)[DEV_COOKIE_NAME];
+  if (!token) return null;
+
+  const idx = token.lastIndexOf(".");
+  if (idx < 0) return null;
+
+  const payload = token.slice(0, idx);
+  const sig = token.slice(idx + 1);
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!data.exp || data.exp < Date.now() || !data.dev) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The single auth gate every admin-authenticated endpoint should call
+ * instead of verifySession() directly. A developer session always
+ * passes (developer is a strictly higher tier, and must work even
+ * when adminPanelEnabled is off — that's what lets you turn it back
+ * on). An admin session passes UNLESS the developer panel has turned
+ * adminPanelEnabled off, in which case existing admin cookies stop
+ * being honored immediately, not just new logins.
+ *
+ * Returns { ok:true, role:"dev"|"admin" } or
+ *         { ok:false, status, body } — body is ready to hand straight
+ * to Response.json(body, { status }).
+ */
+export async function requireAdminOrDev(req) {
+  const dev = verifyDevSession(req);
+  if (dev) return { ok: true, role: "dev" };
+
+  const admin = verifySession(req);
+  if (!admin) {
+    return { ok: false, status: 401, body: { ok: false, error: "unauthorized" } };
+  }
+
+  try {
+    const store = getStore(SITE_CONFIG_STORE_NAME);
+    const config = await loadSiteConfig(store);
+    if (config.adminPanelEnabled === false) {
+      return {
+        ok: false,
+        status: 403,
+        body: {
+          ok: false,
+          error: "admin_panel_disabled",
+          message: "The admin panel has been temporarily turned off."
+        }
+      };
+    }
+  } catch (err) {
+    // Site-config read failing should never itself lock the admin
+    // panel out — fail open here (admin session was already valid).
+    console.error("[auth] requireAdminOrDev: site config check failed", err);
+  }
+
+  return { ok: true, role: "admin" };
 }
