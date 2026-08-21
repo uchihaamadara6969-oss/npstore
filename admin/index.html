@@ -167,10 +167,14 @@
   /* ── Orders tab ── */
   .status-select{padding:6px 8px; border-radius:8px; font-size:12.5px; font-weight:700; border:1.5px solid var(--border); background:#fff; cursor:pointer;}
   .status-select.st-new{background:#EFF6FF; color:#1D4ED8; border-color:#BFDBFE;}
+  .status-select.st-approved{background:#ECFDF5; color:#047857; border-color:#A7F3D0;}
+  .status-select.st-packing{background:#EFF6FF; color:#2563EB; border-color:#BFDBFE;}
   .status-select.st-packed{background:#FFFBEB; color:var(--amber); border-color:#FDE68A;}
   .status-select.st-out_for_delivery{background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE;}
   .status-select.st-delivered{background:#F0FDF4; color:var(--green-hover); border-color:#BBF7D0;}
   .status-select.st-cancelled{background:#FEF2F2; color:var(--red); border-color:#FECACA;}
+  .ord-staff-pill{display:inline-block; background:#F1F5F9; color:#334155; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; white-space:nowrap;}
+  .ord-staff-pill.unclaimed{background:transparent; color:var(--text-muted); font-weight:600;}
   .ord-addr{font-size:12px; color:var(--text-muted); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .ord-items{font-size:12px; color:var(--text-muted); max-width:320px;}
   .ord-customer{font-weight:700; font-size:13px;}
@@ -311,6 +315,7 @@
       <button class="tab-btn active" data-tab="products" id="tabbtn-products">Products</button>
       <button class="tab-btn" data-tab="categories" id="tabbtn-categories">Categories &amp; Photos</button>
       <button class="tab-btn" data-tab="orders" id="tabbtn-orders">Orders</button>
+      <button class="tab-btn" data-tab="staff" id="tabbtn-staff">Staff</button>
     </div>
     <div class="topbar-actions">
       <button class="btn-ghost" id="toggle-add-btn">+ Add product</button>
@@ -451,7 +456,9 @@
         </div>
         <select class="filter-select" id="ord-status-filter">
           <option value="">All statuses</option>
-          <option value="new">New</option>
+          <option value="new">New — Awaiting Approval</option>
+          <option value="approved">Approved</option>
+          <option value="packing">Packing</option>
           <option value="packed">Packed</option>
           <option value="out_for_delivery">Out for Delivery</option>
           <option value="delivered">Delivered</option>
@@ -470,7 +477,8 @@
               <th style="width:140px;">Address</th>
               <th>Items</th>
               <th style="width:90px;">Total ₹</th>
-              <th style="width:170px;">Status</th>
+              <th style="width:130px;">Handled By</th>
+              <th style="width:190px;">Status</th>
             </tr>
           </thead>
           <tbody id="ord-tbody">
@@ -483,6 +491,43 @@
         <button id="ord-prev-page-btn">← Prev</button>
         <span id="ord-page-label">Page 1</span>
         <button id="ord-next-page-btn">Next →</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ TAB: STAFF (order-alert app logins) ═══ -->
+  <div class="tab-panel" id="tab-staff">
+    <main>
+      <div class="add-panel show" id="staff-add-panel">
+        <h3>Add a staff login</h3>
+        <p style="font-size:12.5px; color:var(--text-muted); margin:-6px 0 12px;">Creates a login for the NP Mart Staff app on someone's phone. Every staff account can see and update every order — there are no separate permission levels, and staff accounts never get access to this admin panel, only the order queue in the app.</p>
+        <div class="add-grid">
+          <div><label>Name</label><input type="text" id="staff-add-name" placeholder="e.g. Ankit" /></div>
+          <div><label>Username</label><input type="text" id="staff-add-username" placeholder="e.g. ankit" /></div>
+          <div><label>Password</label><input type="text" id="staff-add-password" placeholder="min 4 characters" /></div>
+          <div><button class="btn-green" id="staff-add-submit-btn">Add</button></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="stat" id="staff-result-stat">Loading…</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px;">ID</th>
+              <th>Name</th>
+              <th style="width:140px;">Username</th>
+              <th style="width:100px;">Status</th>
+              <th style="width:220px;"></th>
+            </tr>
+          </thead>
+          <tbody id="staff-tbody">
+          </tbody>
+        </table>
+        <div class="empty-state" id="staff-empty-state" style="display:none;">No staff accounts yet — add one above.</div>
       </div>
     </main>
   </div>
@@ -792,10 +837,150 @@
   function escapeAttr(s){ return escapeHtml(s); }
 
   // ═══════════════════════════════════════════════════════════════
+  // TAB: STAFF — logins for the NP Mart Staff order-alert app
+  // ═══════════════════════════════════════════════════════════════
+  var staffTbody = document.getElementById("staff-tbody");
+  var staffEmptyState = document.getElementById("staff-empty-state");
+  var staffResultStat = document.getElementById("staff-result-stat");
+  var staffAddNameInput = document.getElementById("staff-add-name");
+  var staffAddUsernameInput = document.getElementById("staff-add-username");
+  var staffAddPasswordInput = document.getElementById("staff-add-password");
+  var staffAddSubmitBtn = document.getElementById("staff-add-submit-btn");
+
+  function loadStaff(){
+    staffResultStat.textContent = "Loading…";
+    fetch("/api/staff-accounts", { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) { toast("Couldn't load staff accounts."); return; }
+        renderStaffRows(data.items || []);
+        staffResultStat.textContent = data.items.length + (data.items.length === 1 ? " staff account" : " staff accounts");
+      })
+      .catch(function(){ toast("Network error loading staff accounts."); });
+  }
+
+  function renderStaffRows(items){
+    if (!items.length) {
+      staffTbody.innerHTML = "";
+      staffEmptyState.style.display = "block";
+      return;
+    }
+    staffEmptyState.style.display = "none";
+
+    staffTbody.innerHTML = items.map(function(s){
+      var statusBadge = s.active
+        ? '<span style="color:var(--accent-green, #1B8A3D); font-weight:700;">Active</span>'
+        : '<span style="color:var(--text-muted); font-weight:700;">Inactive</span>';
+
+      return '<tr data-id="' + escapeAttr(s.id) + '">' +
+        '<td class="cell-id mono" data-label="ID">' + escapeHtml(s.id) + '</td>' +
+        '<td data-label="Name">' + escapeHtml(s.name) + '</td>' +
+        '<td data-label="Username" class="mono">' + escapeHtml(s.username) + '</td>' +
+        '<td data-label="Status">' + statusBadge + '</td>' +
+        '<td data-label="Actions"><div class="row-actions">' +
+          '<button class="btn-ghost" data-action="reset-password" style="padding:6px 10px; font-size:12px;">Reset Password</button>' +
+          '<button class="btn-ghost" data-action="toggle-active" style="padding:6px 10px; font-size:12px;">' + (s.active ? "Deactivate" : "Activate") + '</button>' +
+          '<button class="btn-del" data-action="delete">Delete</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join("");
+  }
+
+  staffAddSubmitBtn.addEventListener("click", function(){
+    var name = staffAddNameInput.value.trim();
+    var username = staffAddUsernameInput.value.trim().toLowerCase();
+    var password = staffAddPasswordInput.value;
+
+    if (!name || !username || password.length < 4) {
+      toast("Enter a name, username, and a password of at least 4 characters.");
+      return;
+    }
+
+    staffAddSubmitBtn.disabled = true;
+    staffAddSubmitBtn.textContent = "Adding…";
+    fetch("/api/staff-accounts", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name, username: username, password: password })
+    }).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); })
+      .then(function(res){
+        staffAddSubmitBtn.disabled = false;
+        staffAddSubmitBtn.textContent = "Add";
+        if (res.ok && res.data.ok) {
+          toast('Staff login created for "' + name + '". Share the username and password with them to sign into the Staff app.');
+          staffAddNameInput.value = "";
+          staffAddUsernameInput.value = "";
+          staffAddPasswordInput.value = "";
+          loadStaff();
+        } else if (res.data.error === "username_taken") {
+          toast("That username is already taken — pick a different one.");
+        } else {
+          toast("Couldn't add staff account: " + (res.data.error || "unknown error"));
+        }
+      }).catch(function(){
+        staffAddSubmitBtn.disabled = false;
+        staffAddSubmitBtn.textContent = "Add";
+        toast("Network error adding staff account.");
+      });
+  });
+
+  staffTbody.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    var tr = btn.closest("tr");
+    var id = tr.dataset.id;
+    var action = btn.dataset.action;
+
+    if (action === "reset-password") {
+      var newPassword = window.prompt("Enter a new password for this staff member (min 4 characters):");
+      if (newPassword === null) return;
+      if (newPassword.length < 4) { toast("Password must be at least 4 characters."); return; }
+      fetch("/api/staff-accounts", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, password: newPassword })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) toast("Password updated.");
+          else toast("Couldn't update password: " + (data.error || "unknown error"));
+        }).catch(function(){ toast("Network error updating password."); });
+    }
+
+    if (action === "toggle-active") {
+      var makeActive = btn.textContent.trim() === "Activate";
+      fetch("/api/staff-accounts", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, active: makeActive })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) { toast(makeActive ? "Staff account activated." : "Staff account deactivated — they can no longer sign into the app."); loadStaff(); }
+          else toast("Couldn't update: " + (data.error || "unknown error"));
+        }).catch(function(){ toast("Network error updating staff account."); });
+    }
+
+    if (action === "delete") {
+      if (!window.confirm("Delete this staff login permanently? They will no longer be able to sign into the Staff app.")) return;
+      fetch("/api/staff-accounts?id=" + encodeURIComponent(id), {
+        method: "DELETE",
+        credentials: "include"
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.ok) { toast("Staff account deleted."); loadStaff(); }
+          else toast("Couldn't delete: " + (data.error || "unknown error"));
+        }).catch(function(){ toast("Network error deleting staff account."); });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // TABS
   // ═══════════════════════════════════════════════════════════════
   var catTabLoaded = false;
   var ordTabLoaded = false;
+  var staffTabLoaded = false;
   document.querySelectorAll(".tab-btn").forEach(function(btn){
     btn.addEventListener("click", function(){
       document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
@@ -810,6 +995,10 @@
       if (btn.dataset.tab === "orders") {
         loadOrders();
         ordTabLoaded = true;
+      }
+      if (btn.dataset.tab === "staff") {
+        loadStaff();
+        staffTabLoaded = true;
       }
     });
   });
@@ -1141,7 +1330,9 @@
   var ordStatusFilter = document.getElementById("ord-status-filter");
 
   var ORDER_STATUSES = [
-    ["new", "New"],
+    ["new", "New — Awaiting Approval"],
+    ["approved", "Approved"],
+    ["packing", "Packing"],
     ["packed", "Packed"],
     ["out_for_delivery", "Out for Delivery"],
     ["delivered", "Delivered"],
@@ -1194,6 +1385,15 @@
         return '<option value="' + s[0] + '"' + (o.status === s[0] ? " selected" : "") + '>' + s[1] + '</option>';
       }).join("");
 
+      var historyTooltip = (o.statusHistory || []).map(function(h){
+        var who = h.byStaffName ? h.byStaffName : "system";
+        return h.status + " (" + who + ") @ " + formatOrderDate(h.at);
+      }).join("\n");
+
+      var staffCell = o.acceptedByName
+        ? '<span class="ord-staff-pill" title="' + escapeAttr(historyTooltip) + '">' + escapeHtml(o.acceptedByName) + '</span>'
+        : '<span class="ord-staff-pill unclaimed" title="' + escapeAttr(historyTooltip) + '">Unclaimed</span>';
+
       return '<tr>' +
         '<td class="cell-id" data-label="Order">' + escapeHtml(o.id) + '</td>' +
         '<td data-label="Date" style="font-size:12px; color:var(--text-muted);">' + formatOrderDate(o.createdAt) + '</td>' +
@@ -1201,6 +1401,7 @@
         '<td class="ord-addr" data-label="Address" title="' + escapeAttr(o.address) + '">' + escapeHtml(o.address) + '</td>' +
         '<td class="ord-items" data-label="Items" title="' + escapeAttr(itemsSummary) + '">' + itemsSummary + '</td>' +
         '<td data-label="Total ₹">₹' + Number(o.total || 0).toLocaleString("en-IN") + '</td>' +
+        '<td data-label="Handled By">' + staffCell + '</td>' +
         '<td data-label="Status"><select class="status-select st-' + o.status + '" data-id="' + escapeAttr(o.id) + '">' + statusOptions + '</select></td>' +
         '</tr>';
     }).join("");

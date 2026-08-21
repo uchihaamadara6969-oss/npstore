@@ -37,11 +37,19 @@
 
 import { getStore } from "@netlify/blobs";
 import { verifySession } from "./_lib/auth.mjs";
+import { sendStaffPush } from "./_lib/push.mjs";
 
 const STORE_NAME = "npmart-orders";
 const BLOB_KEY = "orders.json";
 const MAX_PAGE_SIZE = 200;
-const VALID_STATUSES = ["new", "packed", "out_for_delivery", "delivered", "cancelled"];
+// "new" = pending staff approval (customer-facing: "Order Received").
+// "approved"/"packing" were added for the staff order-alert app (see
+// staff-orders.mjs) — a staff member accepting an order moves it
+// new -> approved, then it's advanced through packing -> packed ->
+// out_for_delivery -> delivered from the staff app. Kept "new" as the
+// internal key (rather than renaming to "pending_approval") so the
+// existing admin panel filter/status-select didn't need a rewrite.
+const VALID_STATUSES = ["new", "approved", "packing", "packed", "out_for_delivery", "delivered", "cancelled"];
 const MAX_ITEMS = 200;
 
 async function loadOrders(store) {
@@ -131,11 +139,29 @@ async function handle(req) {
       subtotal: toNumberOrZero(body?.subtotal),
       delivery: toNumberOrZero(body?.delivery),
       total: toNumberOrZero(body?.total),
-      notes: ""
+      notes: "",
+      // Staff order-alert app fields — empty until a staff member
+      // accepts it (see staff-orders.mjs POST /accept).
+      acceptedBy: null,
+      acceptedByName: null,
+      acceptedAt: null,
+      statusHistory: [{ status: "new", byStaffId: null, byStaffName: null, at: new Date().toISOString() }]
     };
 
     orders.unshift(order);
     await saveOrders(store, orders);
+
+    // Fire-and-forget: rings every staff phone. Never blocks or fails
+    // order creation if push isn't configured yet or a send fails —
+    // the order is already safely saved either way.
+    sendStaffPush({
+      type: "new_order",
+      orderId: order.id,
+      customerName: order.customerName,
+      total: order.total,
+      itemCount: order.items.length
+    });
+
     return Response.json({ ok: true, id: order.id }, { status: 201 });
   }
 
@@ -204,6 +230,12 @@ async function handle(req) {
         );
       }
       order.status = status;
+      // Same audit trail the staff app writes to (see staff-orders.mjs)
+      // — an admin override shows up in the same history, just with a
+      // null staff identity so it's clearly distinguishable as "changed
+      // from the admin panel" rather than by a staff member.
+      if (!Array.isArray(order.statusHistory)) order.statusHistory = [];
+      order.statusHistory.push({ status, byStaffId: null, byStaffName: "Admin", at: new Date().toISOString() });
     }
     if (typeof body.notes === "string") {
       order.notes = body.notes.trim().slice(0, 1000);

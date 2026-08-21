@@ -3820,7 +3820,7 @@ html.os-ios .category-quick-strip {
             <input id="co-name" required placeholder="e.g. Rahul Sharma" />
           </div>
           <div class="form-field">
-            <label for="co-phone">WhatsApp Number *</label>
+            <label for="co-phone">Phone Number (for order updates) *</label>
             <input id="co-phone" type="tel" required placeholder="10-digit mobile number" class="f-mono" />
           </div>
           <div class="form-field">
@@ -3844,19 +3844,26 @@ html.os-ios .category-quick-strip {
             </button>
           </div>
 
-          <button type="submit" class="btn-whatsapp-order" style="margin-top:12px;">
-            <svg class="icon"><use href="#ic-wa"/></svg> Send Order on WhatsApp
+          <button type="submit" id="btn-place-order" class="btn-whatsapp-order" style="margin-top:12px; background:var(--accent-green);">
+            Place Order
           </button>
+          <p id="checkout-error-msg" style="display:none; color:#EF4444; font-size:12.5px; font-weight:700; text-align:center; margin-top:10px;"></p>
         </form>
       </div>
 
       <!-- Order Sent Step -->
       <div id="order-sent-view" style="display:none; text-align:center; padding:40px 16px;">
         <div style="font-size:3.5rem; margin-bottom:12px;">🎉</div>
-        <h3 style="font-size:1.35rem; font-weight:800; margin-bottom:8px;">Order Ready to Send!</h3>
-        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">WhatsApp will open with your itemized receipt. Just tap "Send" in WhatsApp to confirm your order with NP Mart.</p>
-        <a id="wa-direct-link" href="#" target="_blank" class="btn-whatsapp-order" style="display:inline-flex; margin-bottom:14px;">Open WhatsApp Directly</a>
-        <button class="btn-add-to-cart" style="display:block; width:100%;" onclick="startNewOrder()">Start New Order</button>
+        <h3 style="font-size:1.35rem; font-weight:800; margin-bottom:4px;">Congratulations! Your order has been placed.</h3>
+        <p id="order-sent-id" style="font-size:13px; color:var(--text-muted); margin-bottom:18px; font-weight:700;"></p>
+
+        <div id="order-sent-status-box" style="text-align:left; background:var(--surface); border:1.5px dashed var(--border); border-radius:12px; padding:14px 16px; margin-bottom:18px;">
+          <div id="order-sent-status-label" style="font-weight:800; font-size:14px; margin-bottom:4px;">Order Received</div>
+          <div id="order-sent-status-desc" style="font-size:12.5px; color:var(--text-muted);">Awaiting confirmation from our store team.</div>
+        </div>
+
+        <button class="btn-add-to-cart" style="display:block; width:100%; margin-bottom:10px;" onclick="closeCartDrawer(); openOrderHistoryDrawer();">Track This Order</button>
+        <button class="btn-add-to-cart" style="display:block; width:100%; background:var(--surface); color:var(--text); border:1.5px solid var(--border);" onclick="startNewOrder()">Start New Order</button>
       </div>
     </div>
 
@@ -5719,7 +5726,28 @@ function updateCheckoutSummary(){
   if (totalEl) totalEl.textContent = formatINR(total);
 }
 
-function buildWhatsAppMessage(name, phone, address){
+/* ── ORDER STATUS — shared professional copy, used by the "Order
+   Placed" confirmation screen and the Past Orders drawer. Mirrors the
+   staff app's pipeline exactly (see staff-orders.mjs / orders.mjs
+   VALID_STATUSES) so the customer and staff sides never disagree. ── */
+const ORDER_STATUS_META = {
+  new:               { label: "Order Received",     desc: "Awaiting confirmation from our store team." },
+  approved:          { label: "Order Confirmed",     desc: "Your order has been approved and is now being prepared." },
+  packing:           { label: "Being Packed",        desc: "Our team is carefully packing your items." },
+  packed:            { label: "Ready for Dispatch",  desc: "Your order is packed and our delivery staff is getting ready." },
+  out_for_delivery:  { label: "Out for Delivery",    desc: "Your order is on its way to you." },
+  delivered:         { label: "Delivered",           desc: "Your order has been delivered. Thank you for shopping with NP Mart!" },
+  cancelled:         { label: "Cancelled",           desc: "This order was cancelled." }
+};
+function orderStatusMeta(status){
+  return ORDER_STATUS_META[status] || { label: "Order Received", desc: "Awaiting confirmation from our store team." };
+}
+
+/* Builds the same itemized text as before — still used for the
+   optional "Message us on WhatsApp" support link and the printable
+   receipt, just no longer the mechanism that actually places the
+   order (that's placeOrder() below, straight to our own backend). */
+function buildOrderSummaryText(name, phone, address){
   const items = getCartItems();
   const subtotal = getCartSubtotal();
   const delivery = getDeliveryCharge();
@@ -5740,44 +5768,48 @@ function buildWhatsAppMessage(name, phone, address){
   msg += `Delivery Charge: ${delivery === 0 ? 'FREE' : formatINR(delivery)}\n`;
   msg += `*FINAL TOTAL: ${formatINR(total)}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `Please confirm order delivery. Thank you!`;
+  msg += `Order #ID will be shared after placing on the website.`;
+  return msg;
+}
 
-    // Persist order details to history (this browser's own "past orders" list)
-  try {
-    const orderSummary = {
-      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+/* Places the order directly with our own backend (netlify/functions/
+   orders.mjs) — this IS the checkout now, not a side-effect alongside
+   a WhatsApp redirect. Returns the created order's id so the caller
+   can show a proper confirmation + save it for live status tracking.
+   Throws on failure so the caller can show a real error instead of
+   silently pretending the order went through. */
+async function placeOrder(name, phone, address){
+  const items = getCartItems();
+  const subtotal = getCartSubtotal();
+  const delivery = getDeliveryCharge();
+  const total = subtotal + delivery;
+
+  const res = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      customerName: name,
+      phone: phone,
+      address: address,
       items: items.map(x => ({ id: x.id, name: x.name, unit: x.unit, qty: x.qty, price: x.price })),
       subtotal: subtotal,
-      total: total,
-      customerName: name,
-      address: address
-    };
-    if (typeof saveOrderToHistory === "function") saveOrderToHistory(orderSummary);
-  } catch(e) { console.warn(e); }
+      delivery: delivery,
+      total: total
+    })
+  });
+  const data = await res.json().catch(function(){ return null; });
+  if (!res.ok || !data || data.ok === false) {
+    throw new Error((data && (data.message || data.error)) || ("HTTP " + res.status));
+  }
 
-  // Also record this order in the backend (Netlify Blobs, via
-  // netlify/functions/orders.mjs) so it shows up in the admin panel's
-  // Orders tab with full customer/order history — separate from, and
-  // in addition to, the WhatsApp message below. Fire-and-forget: never
-  // blocks or delays the WhatsApp redirect, and a failure here doesn't
-  // stop the order from going through on WhatsApp as normal.
-  try {
-    fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerName: name,
-        phone: phone,
-        address: address,
-        items: items.map(x => ({ id: x.id, name: x.name, unit: x.unit, qty: x.qty, price: x.price })),
-        subtotal: subtotal,
-        delivery: delivery,
-        total: total
-      })
-    }).catch(function(err){ console.warn("[Orders] backend save failed (WhatsApp order still sent):", err); });
-  } catch(e) { console.warn(e); }
+  // Orders now live entirely on the backend, looked up later by phone
+  // number (see orders-by-phone.mjs / "My Orders") — nothing needs to
+  // be duplicated into localStorage anymore. Just remember this phone
+  // number as a convenience so "My Orders" and the checkout form don't
+  // need it retyped on this same device next time.
+  try { saveLastUsedPhone(normalizePhoneDigits(phone)); } catch(e) { console.warn(e); }
 
-  return `https://wa.me/${STORE_PHONE}?text=` + encodeURIComponent(msg);
+  return data.id;
 }
 
 function startNewOrder(){
@@ -5981,7 +6013,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   var _floatingBar = document.getElementById("floating-delivery-bar");
   if (_floatingBar) _floatingBar.addEventListener("click", openCartDrawer);
 
-  // Checkout form submit
+  // My Orders — phone number lookup
+  var _ohPhoneInput = document.getElementById("oh-phone-input");
+  var _ohLookupBtn = document.getElementById("oh-phone-lookup-btn");
+  if (_ohLookupBtn && _ohPhoneInput) {
+    _ohLookupBtn.addEventListener("click", function(){ lookupMyOrders(_ohPhoneInput.value); });
+    _ohPhoneInput.addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); lookupMyOrders(_ohPhoneInput.value); }
+    });
+  }
+
+  // Checkout form submit — places the order directly with NP Mart's
+  // own backend (no more WhatsApp redirect as the checkout mechanism).
   var _checkoutForm = document.getElementById("checkout-form");
   if (_checkoutForm) {
     _checkoutForm.addEventListener("submit", function(e) {
@@ -5991,19 +6034,62 @@ document.addEventListener("DOMContentLoaded", async () => {
       var address = document.getElementById("co-address").value.trim();
       if (!name || !phone || !address) return;
 
-      var url = buildWhatsAppMessage(name, phone, address);
+      var submitBtn = document.getElementById("btn-place-order");
+      var errEl = document.getElementById("checkout-error-msg");
+      if (errEl) errEl.style.display = "none";
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Placing your order…"; }
 
-      // Open WhatsApp
-      var win = window.open(url, "_blank");
-      if (!win) window.location.href = url;
-
-      // Show order sent view
-      document.getElementById("checkout-view").style.display = "none";
-      var sentView = document.getElementById("order-sent-view");
-      if (sentView) sentView.style.display = "block";
-      var directLink = document.getElementById("wa-direct-link");
-      if (directLink) directLink.href = url;
+      placeOrder(name, phone, address).then(function(orderId){
+        // Show order sent view with the real order id + starting status
+        document.getElementById("checkout-view").style.display = "none";
+        var sentView = document.getElementById("order-sent-view");
+        if (sentView) sentView.style.display = "block";
+        var idEl = document.getElementById("order-sent-id");
+        if (idEl) idEl.textContent = "Order #" + orderId;
+        var meta = orderStatusMeta("new");
+        var labelEl = document.getElementById("order-sent-status-label");
+        var descEl = document.getElementById("order-sent-status-desc");
+        if (labelEl) labelEl.textContent = meta.label;
+        if (descEl) descEl.textContent = meta.desc;
+      }).catch(function(err){
+        console.error("[Orders] place order failed:", err);
+        if (errEl) {
+          errEl.textContent = "Couldn't place your order — please check your connection and try again, or call the store directly.";
+          errEl.style.display = "block";
+        }
+      }).finally(function(){
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Place Order"; }
+      });
     });
+
+    // Autofill: pre-fill the remembered phone number on this device, and
+    // when the phone field has a full 10 digits, look up that phone's
+    // most recent order to fill in name + address too — no login, just
+    // the same phone-as-identity model used everywhere else on the site.
+    // Only fills EMPTY fields, so it never overwrites what someone is
+    // actively typing/editing.
+    var coPhoneInput = document.getElementById("co-phone");
+    var coNameInput = document.getElementById("co-name");
+    var coAddressInput = document.getElementById("co-address");
+    if (coPhoneInput) {
+      var lastPhone = getLastUsedPhone();
+      if (lastPhone && !coPhoneInput.value) coPhoneInput.value = lastPhone;
+
+      var autofillFromPhone = function(){
+        var digits = normalizePhoneDigits(coPhoneInput.value);
+        if (digits.length < 10) return;
+        fetch("/api/orders-by-phone?phone=" + encodeURIComponent(digits))
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if (!data || !data.ok || !data.customer) return;
+            if (coNameInput && !coNameInput.value.trim()) coNameInput.value = data.customer.name || "";
+            if (coAddressInput && !coAddressInput.value.trim()) coAddressInput.value = data.customer.address || "";
+          })
+          .catch(function(){ /* silent — autofill is a convenience, not required */ });
+      };
+      coPhoneInput.addEventListener("blur", autofillFromPhone);
+      if (coPhoneInput.value) autofillFromPhone();
+    }
   }
 });
 
@@ -6952,39 +7038,77 @@ var npStorage = {
 };
 
 /* â”€â”€ PAST ORDERS RECORDING & RE-ORDERING â”€â”€ */
-function getPastOrders(){
-  try {
-    var raw = npStorage.get("np_past_orders");
-    if (raw) return JSON.parse(raw);
-  } catch(e){}
-  return [];
-}
+/* ── MY ORDERS — phone-number lookup (no login) ──────────────────────
+   NP Mart has no customer accounts; a phone number IS the customer's
+   identity here, same as it always was over WhatsApp. "My Orders" now
+   fetches straight from the backend (netlify/functions/orders-by-
+   phone.mjs) by phone number, so it works from ANY device — not just
+   whichever browser happened to place the order, like the old
+   localStorage-only version did. The last-used phone number is still
+   remembered locally purely as a convenience so the drawer doesn't
+   make you retype it on the SAME device every time. ── */
+var myOrdersState = { phone: "", orders: [] };
 
-function saveOrderToHistory(orderData){
-  try {
-    var orders = getPastOrders();
-    orders.unshift(orderData);
-    if (orders.length > 25) orders.pop(); // keep last 25 orders
-    npStorage.set("np_past_orders", JSON.stringify(orders));
-  } catch(e){}
+function getLastUsedPhone(){
+  try { return npStorage.get("np_last_phone") || ""; } catch(e){ return ""; }
+}
+function saveLastUsedPhone(phone){
+  try { npStorage.set("np_last_phone", phone); } catch(e){}
+}
+function normalizePhoneDigits(phone){
+  return String(phone || "").replace(/\D/g, "").slice(-10);
 }
 
 function openOrderHistoryDrawer(){
   var o = document.getElementById("order-history-overlay");
   if (o) o.classList.add("open");
-  renderOrderHistory();
+  var phoneInput = document.getElementById("oh-phone-input");
+  var lastPhone = getLastUsedPhone();
+  if (phoneInput && lastPhone && !phoneInput.value) phoneInput.value = lastPhone;
+  if (phoneInput && phoneInput.value) {
+    lookupMyOrders(phoneInput.value);
+  } else {
+    renderOrderHistory();
+  }
 }
 function closeOrderHistoryDrawer(){
   var o = document.getElementById("order-history-overlay");
   if (o) o.classList.remove("open");
 }
 
+function lookupMyOrders(phoneRaw){
+  var phone = normalizePhoneDigits(phoneRaw);
+  var listEl = document.getElementById("oh-orders-list");
+  var subEl = document.getElementById("oh-subtitle");
+  var hintEl = document.getElementById("oh-phone-hint");
+
+  if (phone.length < 10) {
+    if (hintEl) { hintEl.textContent = "Please enter a valid 10-digit phone number."; hintEl.style.color = "#EF4444"; }
+    return;
+  }
+  if (hintEl) { hintEl.textContent = "No account needed — just the phone number you ordered with. Works on any device."; hintEl.style.color = ""; }
+  if (subEl) subEl.textContent = "Loading…";
+  if (listEl) listEl.innerHTML = '<div style="padding:30px 20px; text-align:center; color:var(--text-muted);">Loading your orders…</div>';
+
+  fetch("/api/orders-by-phone?phone=" + encodeURIComponent(phone))
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || "lookup_failed");
+      myOrdersState = { phone: phone, orders: data.orders || [] };
+      saveLastUsedPhone(phone);
+      renderOrderHistory();
+    })
+    .catch(function(){
+      myOrdersState = { phone: phone, orders: [] };
+      if (subEl) subEl.textContent = "Couldn't load your orders";
+      if (listEl) listEl.innerHTML = '<div style="padding:30px 20px; text-align:center; color:var(--text-muted);">Couldn\'t reach the server. Please check your connection and try again.</div>';
+    });
+}
+
 function reorderPastOrder(orderIndex){
-  var orders = getPastOrders();
-  var order = orders[orderIndex];
+  var order = myOrdersState.orders[orderIndex];
   if (!order || !order.items) return;
 
-  // Add all items from this order into current cart
   order.items.forEach(function(it){
     state.cart[it.id] = (state.cart[it.id] || 0) + (it.qty || 1);
   });
@@ -6997,30 +7121,53 @@ function reorderPastOrder(orderIndex){
   showWishlistToast("&#128722; Past order items added to Cart!");
 }
 
+function formatOrderDateClient(iso){
+  try {
+    var d = new Date(iso);
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) + ", " +
+      d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  } catch(e) { return ""; }
+}
+
 function renderOrderHistory(){
   var listEl = document.getElementById("oh-orders-list");
   var subEl = document.getElementById("oh-subtitle");
   if (!listEl) return;
-  var orders = getPastOrders();
+  var orders = myOrdersState.orders;
 
-  if (subEl) subEl.textContent = orders.length + (orders.length === 1 ? " order saved" : " orders saved");
+  if (!myOrdersState.phone) {
+    if (subEl) subEl.textContent = "Look up your orders by phone number";
+    listEl.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><div style="font-size:36px; margin-bottom:8px;">&#128220;</div>Enter your phone number above to see every order you\'ve placed with NP Mart — on any device.</div>';
+    return;
+  }
+
+  if (subEl) subEl.textContent = orders.length + (orders.length === 1 ? " order found" : " orders found");
 
   if (!orders.length) {
-    listEl.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><div style="font-size:36px; margin-bottom:8px;">ðŸ“œ</div>No past orders found in your browser cache yet.<br/>Your completed orders will be saved here automatically!</div>';
+    listEl.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><div style="font-size:36px; margin-bottom:8px;">&#128220;</div>No orders found for this phone number yet.<br/>Your orders will show up here as soon as you place one!</div>';
     return;
   }
 
   listEl.innerHTML = orders.map(function(ord, idx){
-    var itemsSummary = ord.items.map(function(it){
+    var itemsSummary = (ord.items || []).map(function(it){
       return it.name + " (" + (it.unit || "") + ") &times; " + it.qty;
     }).join(", ");
 
+    var meta = orderStatusMeta(ord.status || "new");
+    var pillColor = (ord.status === "delivered") ? "var(--accent-green)" :
+                     (ord.status === "cancelled") ? "#EF4444" : "#F5A623";
+    var statusHtml = '<div class="oh-status-row" style="display:flex; align-items:center; gap:8px; margin:6px 0;">' +
+      '<span style="background:' + pillColor + '; color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px;">' + meta.label + '</span>' +
+      '<span style="font-size:11px; color:var(--text-muted);">Order #' + ord.id + '</span>' +
+    '</div>';
+
     return '<div class="oh-order-card">' +
       '<div class="oh-order-header">' +
-        '<span class="oh-date">&#128197; ' + ord.date + '</span>' +
+        '<span class="oh-date">&#128197; ' + formatOrderDateClient(ord.createdAt) + '</span>' +
         '<span class="oh-total">' + formatINR(ord.total) + '</span>' +
       '</div>' +
-      '<div class="oh-items-list"><strong>Items (' + ord.items.length + '):</strong> ' + itemsSummary + '</div>' +
+      statusHtml +
+      '<div class="oh-items-list"><strong>Items (' + (ord.items || []).length + '):</strong> ' + itemsSummary + '</div>' +
       '<button class="oh-reorder-btn" onclick="reorderPastOrder(' + idx + ')" type="button">' +
         '&#128257; Re-Order All Items' +
       '</button>' +
@@ -8092,10 +8239,17 @@ setTimeout(function(){
   <div class="oh-window">
     <div class="cart-drawer-header">
       <div>
-        <div class="cart-drawer-title">&#128220; Past Orders History</div>
-        <div id="oh-subtitle" class="cart-drawer-subtitle">Saved in your browser</div>
+        <div class="cart-drawer-title">&#128220; My Orders</div>
+        <div id="oh-subtitle" class="cart-drawer-subtitle">Look up your orders by phone number</div>
       </div>
       <button onclick="closeOrderHistoryDrawer()" type="button" style="background:var(--surface-2); border:1px solid var(--border); border-radius:50%; width:32px; height:32px; cursor:pointer; font-size:16px;">&#10005;</button>
+    </div>
+    <div style="padding:14px 16px 0;">
+      <div style="display:flex; gap:8px;">
+        <input id="oh-phone-input" type="tel" placeholder="Your 10-digit phone number" class="f-mono" style="flex:1; padding:10px 12px; border-radius:10px; border:1.5px solid var(--border); font-size:14px;" />
+        <button id="oh-phone-lookup-btn" type="button" class="btn-add-to-cart" style="padding:10px 16px; white-space:nowrap;">View</button>
+      </div>
+      <p id="oh-phone-hint" style="font-size:11.5px; color:var(--text-muted); margin-top:6px;">No account needed — just the phone number you ordered with. Works on any device.</p>
     </div>
     <div id="oh-orders-list" class="cart-items-list" style="flex:1; overflow-y:auto; padding:16px;"></div>
   </div>
