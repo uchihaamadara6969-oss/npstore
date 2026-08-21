@@ -316,6 +316,7 @@
       <button class="tab-btn" data-tab="categories" id="tabbtn-categories">Categories &amp; Photos</button>
       <button class="tab-btn" data-tab="orders" id="tabbtn-orders">Orders</button>
       <button class="tab-btn" data-tab="staff" id="tabbtn-staff">Staff</button>
+      <button class="tab-btn" data-tab="import" id="tabbtn-import">Import (Marg)</button>
     </div>
     <div class="topbar-actions">
       <button class="btn-ghost" id="toggle-add-btn">+ Add product</button>
@@ -332,6 +333,7 @@
         <div class="add-grid">
           <div><label>Name</label><input type="text" id="add-name" placeholder="Product name" /></div>
           <div><label>Unit</label><input type="text" id="add-unit" placeholder="e.g. 1 KG" /></div>
+          <div><label>Company</label><input type="text" id="add-company" placeholder="e.g. Amul" /></div>
           <div><label>Price ₹</label><input type="number" id="add-price" min="0" step="1" /></div>
           <div><label>MRP ₹</label><input type="number" id="add-mrp" min="0" step="1" /></div>
           <div><label>Stock</label><input type="number" id="add-stock" min="0" step="1" /></div>
@@ -354,6 +356,7 @@
               <th style="width:90px;">ID</th>
               <th>Name</th>
               <th style="width:110px;">Unit</th>
+              <th style="width:110px;">Company</th>
               <th style="width:100px;">Price ₹</th>
               <th style="width:100px;">MRP ₹</th>
               <th style="width:90px;">Stock</th>
@@ -531,6 +534,69 @@
       </div>
     </main>
   </div>
+
+  <!-- ═══ TAB: IMPORT (Marg ERP bulk price/stock) ═══ -->
+  <div class="tab-panel" id="tab-import">
+    <main>
+      <div class="add-panel show" id="import-panel">
+        <h3>Import price &amp; stock from Marg ERP</h3>
+        <p style="font-size:12.5px; color:var(--text-muted); margin:-6px 0 12px; max-width:640px;">
+          Export the "STOCK &amp; RATES STATEMENT" .txt report from Marg and upload it here. This updates
+          <b>only price and stock</b> on products already in the catalog, matched by product code — never by
+          name — and nothing else (name, unit, category, company, photo) is ever touched. Products with no
+          matching code, or a code that maps to more than one product name in the file, are skipped and
+          listed below for you to check by hand instead of being guessed at.
+        </p>
+        <div class="add-grid" style="align-items:end;">
+          <div style="grid-column: 1 / -1;">
+            <label>Marg export (.txt)</label>
+            <input type="file" id="import-file-input" accept=".txt,text/plain" />
+          </div>
+          <div><button class="btn-green" id="import-run-btn" disabled>Run Import</button></div>
+        </div>
+        <div id="import-file-status" style="font-size:12.5px; color:var(--text-muted); margin-top:8px;"></div>
+      </div>
+
+      <div id="import-result" style="display:none;">
+        <div class="toolbar">
+          <div class="stat" id="import-summary-stat"></div>
+        </div>
+
+        <div id="import-newitems-block" style="display:none; margin-bottom:18px;">
+          <h3 style="font-size:14px; margin-bottom:8px;">New items found (not added automatically)</h3>
+          <p style="font-size:12.5px; color:var(--text-muted); margin:-4px 0 10px;">These codes aren't in your catalog yet. Add them by hand (Products tab) with a category/company if you want them live.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th style="width:90px;">Code</th><th>Name</th><th style="width:90px;">MRP</th><th style="width:90px;">Price</th><th style="width:90px;">Stock</th></tr></thead>
+              <tbody id="import-newitems-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="import-dupe-block" style="display:none; margin-bottom:18px;">
+          <h3 style="font-size:14px; margin-bottom:8px;">Duplicate codes — needs manual review</h3>
+          <p style="font-size:12.5px; color:var(--text-muted); margin:-4px 0 10px;">This code appears more than once in the file, attached to different product names — Marg likely reused a discontinued item's code. Skipped entirely so nothing gets attached to the wrong product.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th style="width:90px;">Code</th><th>Names found in file</th></tr></thead>
+              <tbody id="import-dupe-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="import-zerorate-block" style="display:none;">
+          <h3 style="font-size:14px; margin-bottom:8px;">Rate was ₹0 — price left unchanged</h3>
+          <p style="font-size:12.5px; color:var(--text-muted); margin:-4px 0 10px;">Marg had no sale rate set for these, so the existing price on the site was kept as-is (stock &amp; MRP were still updated). Check these if that's not right.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th style="width:90px;">ID</th><th>Name</th><th style="width:90px;">MRP</th></tr></thead>
+              <tbody id="import-zerorate-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
 
 <input type="file" id="photo-file-input" accept="image/*" style="display:none;" />
@@ -676,6 +742,7 @@
     var body = {
       name: name,
       unit: document.getElementById("add-unit").value.trim(),
+      company: document.getElementById("add-company").value.trim(),
       price: document.getElementById("add-price").value,
       mrp: document.getElementById("add-mrp").value,
       stock: document.getElementById("add-stock").value
@@ -689,7 +756,7 @@
       .then(function(data){
         if (data.ok) {
           toast("Product added.");
-          ["add-name","add-unit","add-price","add-mrp","add-stock"].forEach(function(id){
+          ["add-name","add-unit","add-company","add-price","add-mrp","add-stock"].forEach(function(id){
             document.getElementById(id).value = "";
           });
           addPanel.classList.remove("show");
@@ -753,6 +820,7 @@
         '<td class="cell-id mono" data-label="ID">' + escapeHtml(p.id) + '</td>' +
         '<td data-label="Name"><input type="text" class="name-input" data-field="name" value="' + escapeAttr(p.name) + '" /></td>' +
         '<td data-label="Unit"><input type="text" data-field="unit" value="' + escapeAttr(p.unit || "") + '" style="width:90px;" /></td>' +
+        '<td data-label="Company"><input type="text" data-field="company" value="' + escapeAttr(p.company || "") + '" style="width:100px;" placeholder="e.g. Amul" /></td>' +
         '<td data-label="Price ₹"><input type="number" class="num" data-field="price" value="' + p.price + '" min="0" /></td>' +
         '<td data-label="MRP ₹"><input type="number" class="num" data-field="mrp" value="' + p.mrp + '" min="0" /></td>' +
         '<td data-label="Stock"><input type="number" class="num" data-field="stock" value="' + p.stock + '" min="0" />' +
@@ -1002,6 +1070,118 @@
       }
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // IMPORT TAB (Marg ERP bulk price/stock)
+  // ═══════════════════════════════════════════════════════════════
+  (function(){
+    var fileInput = document.getElementById("import-file-input");
+    var runBtn = document.getElementById("import-run-btn");
+    var fileStatus = document.getElementById("import-file-status");
+    var resultBox = document.getElementById("import-result");
+    var summaryStat = document.getElementById("import-summary-stat");
+    var newItemsBlock = document.getElementById("import-newitems-block");
+    var newItemsTbody = document.getElementById("import-newitems-tbody");
+    var dupeBlock = document.getElementById("import-dupe-block");
+    var dupeTbody = document.getElementById("import-dupe-tbody");
+    var zeroRateBlock = document.getElementById("import-zerorate-block");
+    var zeroRateTbody = document.getElementById("import-zerorate-tbody");
+    var fileText = null;
+
+    if (!fileInput) return; // tab not present on this build
+
+    fileInput.addEventListener("change", function(){
+      var f = fileInput.files && fileInput.files[0];
+      fileText = null;
+      runBtn.disabled = true;
+      if (!f) { fileStatus.textContent = ""; return; }
+      fileStatus.textContent = "Reading " + f.name + "…";
+      var reader = new FileReader();
+      reader.onload = function(){
+        fileText = String(reader.result || "");
+        fileStatus.textContent = f.name + " — " + fileText.split(/\r\n|\r|\n/).length.toLocaleString() + " lines ready to import.";
+        runBtn.disabled = false;
+      };
+      reader.onerror = function(){
+        fileStatus.textContent = "Couldn't read that file — try again.";
+      };
+      reader.readAsText(f);
+    });
+
+    runBtn.addEventListener("click", function(){
+      if (!fileText) return;
+      runBtn.disabled = true;
+      runBtn.textContent = "Importing…";
+      fetch("/api/products-import", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fileText })
+      })
+        .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+        .then(function(res){
+          runBtn.textContent = "Run Import";
+          runBtn.disabled = false;
+          if (!res.ok || !res.d || !res.d.ok) {
+            toast("Import failed: " + ((res.d && (res.d.message || res.d.error)) || "unknown error"));
+            return;
+          }
+          var s = res.d.summary;
+          resultBox.style.display = "block";
+          summaryStat.textContent =
+            s.totalRows.toLocaleString() + " rows read · " +
+            s.updatedCount.toLocaleString() + " products updated · " +
+            s.newItems.length + " new · " +
+            s.skippedAmbiguousDuplicateCode.length + " duplicate codes skipped · " +
+            s.skippedNonProduct + " non-product rows skipped · " +
+            s.zeroRateFlagged.length + " flagged for ₹0 rate";
+          toast("Import complete — " + s.updatedCount.toLocaleString() + " products updated.");
+
+          if (s.newItems.length) {
+            newItemsBlock.style.display = "block";
+            newItemsTbody.innerHTML = s.newItems.map(function(it){
+              return "<tr><td>" + escapeHtml(it.code) + "</td><td>" + escapeHtml(it.name) + "</td><td>" +
+                (it.mrp || 0) + "</td><td>" + (it.price || 0) + "</td><td>" + (it.stock || 0) + "</td></tr>";
+            }).join("");
+          } else {
+            newItemsBlock.style.display = "none";
+          }
+
+          if (s.skippedAmbiguousDuplicateCode.length) {
+            dupeBlock.style.display = "block";
+            dupeTbody.innerHTML = s.skippedAmbiguousDuplicateCode.map(function(d){
+              return "<tr><td>" + escapeHtml(d.code) + "</td><td>" + d.occurrences.map(escapeHtml).join(" &nbsp;/&nbsp; ") + "</td></tr>";
+            }).join("");
+          } else {
+            dupeBlock.style.display = "none";
+          }
+
+          if (s.zeroRateFlagged.length) {
+            zeroRateBlock.style.display = "block";
+            zeroRateTbody.innerHTML = s.zeroRateFlagged.map(function(z){
+              return "<tr><td>" + escapeHtml(z.id) + "</td><td>" + escapeHtml(z.name) + "</td><td>" + (z.mrp || 0) + "</td></tr>";
+            }).join("");
+          } else {
+            zeroRateBlock.style.display = "none";
+          }
+
+          // Product list may now be stale (prices/stock changed) — refresh it
+          // next time the Products tab is visited rather than forcing it now.
+          state.page = state.page; // no-op, just documents intent
+        })
+        .catch(function(err){
+          runBtn.textContent = "Run Import";
+          runBtn.disabled = false;
+          toast("Import failed: " + err.message);
+        });
+    });
+
+    function escapeHtml(s){
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+  })();
 
   // ═══════════════════════════════════════════════════════════════
   // CATEGORIES & PHOTOS TAB

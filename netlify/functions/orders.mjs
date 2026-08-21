@@ -26,9 +26,19 @@
               (default 50, max 200), ?all=1. Sorted newest first.
 
      PATCH  /api/orders     ADMIN-ONLY. Body: { id, status } and/or
-              { id, notes }. Updates one order.
+              { id, notes }. Updates one order. Setting status to
+              "cancelled" restores the order's items to live product
+              stock; un-cancelling takes it off again (see _lib/
+              catalog.mjs's adjustStock()).
 
-     DELETE /api/orders?id=o00001   ADMIN-ONLY.
+     DELETE /api/orders?id=o00001   ADMIN-ONLY. Also restores stock if
+              the deleted order hadn't already been cancelled.
+
+   Live stock: placing an order (POST, above) immediately deducts each
+   item's quantity from product.stock in the catalog store — see
+   adjustStock() in _lib/catalog.mjs, which uses the same conditional-
+   write + retry pattern as the staff accept-order race fix so
+   concurrent checkouts can't clobber each other's stock updates.
 
    NOTE (Hostinger migration): like products.mjs, this uses
    @netlify/blobs and will need rebuilding against MySQL/PHP whenever
@@ -38,6 +48,7 @@
 import { getStore } from "@netlify/blobs";
 import { verifySession } from "./_lib/auth.mjs";
 import { sendStaffPush } from "./_lib/push.mjs";
+import { STORE_NAME as CATALOG_STORE_NAME, adjustStock } from "./_lib/catalog.mjs";
 
 const STORE_NAME = "npmart-orders";
 const BLOB_KEY = "orders.json";
@@ -151,6 +162,17 @@ async function handle(req) {
     orders.unshift(order);
     await saveOrders(store, orders);
 
+    // Take the ordered quantities off live stock immediately — before
+    // this, placing an order never touched product.stock at all, so the
+    // storefront kept showing the pre-order quantity as available even
+    // after it was sold. Awaited for the same teardown-safety reason as
+    // sendStaffPush below; adjustStock() never throws (logs and gives up
+    // after its own retries), so it can't fail order creation.
+    await adjustStock(
+      getStore(CATALOG_STORE_NAME),
+      order.items.map((it) => ({ id: it.id, delta: -it.qty }))
+    );
+
     // Rings every staff phone. AWAITED deliberately — Netlify's function
     // runtime can tear down the execution environment right after the
     // Response is returned, which would silently kill an un-awaited
@@ -226,6 +248,8 @@ async function handle(req) {
     const order = orders.find((o) => String(o.id).toLowerCase() === id);
     if (!order) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
 
+    let stockDeltas = null; // set below if this status change should touch live stock
+
     if (typeof body.status === "string") {
       const status = body.status.trim().toLowerCase();
       if (!VALID_STATUSES.includes(status)) {
@@ -234,6 +258,21 @@ async function handle(req) {
           { status: 400 }
         );
       }
+
+      // Stock was already taken off when this order was placed (see the
+      // POST handler above). Cancelling it should give that stock back;
+      // un-cancelling (rare, but an admin can) should take it off again
+      // — otherwise a cancel/uncancel/cancel cycle would silently leak
+      // stock back each time. Only the actual transition matters, not
+      // the status itself, so this only fires on a real crossing.
+      const wasCancelled = order.status === "cancelled";
+      const willBeCancelled = status === "cancelled";
+      if (!wasCancelled && willBeCancelled) {
+        stockDeltas = order.items.map((it) => ({ id: it.id, delta: it.qty }));
+      } else if (wasCancelled && !willBeCancelled) {
+        stockDeltas = order.items.map((it) => ({ id: it.id, delta: -it.qty }));
+      }
+
       order.status = status;
       // Same audit trail the staff app writes to (see staff-orders.mjs)
       // — an admin override shows up in the same history, just with a
@@ -247,6 +286,7 @@ async function handle(req) {
     }
 
     await saveOrders(store, orders);
+    if (stockDeltas) await adjustStock(getStore(CATALOG_STORE_NAME), stockDeltas);
     return Response.json({ ok: true, item: order });
   }
 
@@ -260,6 +300,18 @@ async function handle(req) {
 
     const [removed] = orders.splice(idx, 1);
     await saveOrders(store, orders);
+
+    // If this order was still holding stock (i.e. it hadn't already been
+    // cancelled, which already gave the stock back), deleting it outright
+    // should give that stock back too — otherwise the deducted quantity
+    // is gone for good with no order left to explain where it went.
+    if (removed && removed.status !== "cancelled" && Array.isArray(removed.items) && removed.items.length) {
+      await adjustStock(
+        getStore(CATALOG_STORE_NAME),
+        removed.items.map((it) => ({ id: it.id, delta: it.qty }))
+      );
+    }
+
     return Response.json({ ok: true, removed });
   }
 

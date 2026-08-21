@@ -24,8 +24,8 @@
      PATCH  /api/products              admin-only. Body:
               { "updates": [{ "id": "a12345", "price": 99, "mrp": 120,
                               "stock": 10, "name": "...", "unit": "...",
-                              "category": "food", "sub": "snacks",
-                              "micro": "popcorn" }] }
+                              "company": "...", "category": "food",
+                              "sub": "snacks", "micro": "popcorn" }] }
               Any field left out is untouched. Send "" for category to
               reset a product back to uncategorized ("general"); send
               "" for sub/micro to clear just that level. Unknown ids
@@ -178,6 +178,11 @@ async function handle(req) {
       if (stock !== undefined) p.stock = Math.max(0, Math.round(stock));
       if (typeof u.name === "string" && u.name.trim()) p.name = u.name.trim();
       if (typeof u.unit === "string" && u.unit.trim()) p.unit = u.unit.trim();
+      // Company/brand — a separate manually-assigned field (older seeded
+      // products have no company at all; the storefront still guesses a
+      // brand from the product name for its "All Companies" filter, but
+      // this is the real, admin-set value). Sent as "" clears it.
+      if (typeof u.company === "string") p.company = u.company.trim();
 
       // Taxonomy: category/sub/micro. undefined = untouched, null/"" =
       // clear that level, a string = set it. Clearing category resets
@@ -232,6 +237,7 @@ async function handle(req) {
       price: toNumberOrUndefined(body.price) ?? 0,
       mrp: toNumberOrUndefined(body.mrp) ?? toNumberOrUndefined(body.price) ?? 0,
       stock: Math.max(0, Math.round(toNumberOrUndefined(body.stock) ?? 0)),
+      company: typeof body.company === "string" ? body.company.trim() : "",
       category: "general",
       sub: null,
       micro: null
