@@ -151,10 +151,15 @@ async function handle(req) {
     orders.unshift(order);
     await saveOrders(store, orders);
 
-    // Fire-and-forget: rings every staff phone. Never blocks or fails
-    // order creation if push isn't configured yet or a send fails —
-    // the order is already safely saved either way.
-    sendStaffPush({
+    // Rings every staff phone. AWAITED deliberately — Netlify's function
+    // runtime can tear down the execution environment right after the
+    // Response is returned, which would silently kill an un-awaited
+    // "fire-and-forget" push call before its network requests (OAuth
+    // token exchange + the actual FCM send) ever complete. sendStaffPush()
+    // never throws — it catches everything internally and returns
+    // {ok:false, ...} on any failure — so awaiting it adds a little
+    // latency but can never fail or block order creation itself.
+    await sendStaffPush({
       type: "new_order",
       orderId: order.id,
       customerName: order.customerName,

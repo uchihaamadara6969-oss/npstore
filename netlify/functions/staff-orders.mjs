@@ -188,10 +188,13 @@ async function handle(req) {
       return Response.json({ ok: false, error: "conflict_retry_exhausted", message: "Please try again." }, { status: 409 });
     }
 
-    // Fire-and-forget: tells every OTHER staff phone to stop alerting
-    // for this order. Never blocks/fails the response above it — the
-    // accept itself already succeeded and is saved regardless.
-    sendStaffPush({
+    // Tells every OTHER staff phone to stop alerting for this order.
+    // AWAITED — un-awaited "fire-and-forget" calls can get killed mid-
+    // flight when Netlify tears down the function right after the
+    // Response is returned, before the push's network calls finish.
+    // sendStaffPush() never throws, so this can't fail/block the accept
+    // itself, which is already saved regardless.
+    await sendStaffPush({
       type: "order_accepted",
       orderId: result.order.id,
       acceptedByName: result.order.acceptedByName
@@ -230,7 +233,9 @@ async function handle(req) {
     pushHistory(order, status, session);
     await saveOrders(store, orders);
 
-    sendStaffPush({
+    // AWAITED for the same reason as the other two calls in this file —
+    // see the comment on the "order_accepted" push above.
+    await sendStaffPush({
       type: "order_status",
       orderId: order.id,
       status,
