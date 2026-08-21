@@ -14,14 +14,9 @@
 
    Endpoints (ALL require a valid staff session cookie):
      GET   /api/staff-orders             active orders (excludes
-             delivered/cancelled by default; ?all=1 includes them),
-             newest first.
-     POST  /api/staff-orders/accept      Body: { id }. Claims an
-             unaccepted order — first staff member to call this wins;
-             everyone else gets a 409 with who got there first, which
-             is exactly the signal the app uses to stop that phone's
-             alert. Pushes "order_accepted" so every other staff phone
-             is told to stop buzzing within about a second.
+             delivered/cancelled by default; ?all=1 includes them —
+             this is what the app's Order History view uses), newest
+             first.
      PATCH /api/staff-orders             Body: { id, status }. Moves
              an already-accepted order forward through the pipeline.
              Any logged-in staff member can advance any accepted order
@@ -34,6 +29,13 @@
    VALID_STATUSES (shared meaning with orders.mjs — see that file):
      new → approved → packing → packed → out_for_delivery → delivered
      (cancelled can happen from anywhere, set by admin only)
+
+   NOTE: Accept (POST /api/staff-orders/accept) now lives in its own
+   file, staff-orders-accept.mjs — it used to live here behind a
+   manual pathname check, which turned out to be the real cause of a
+   "not found" error on every accept attempt. Split out for a single,
+   unambiguous path per function, matching every other function in
+   this codebase.
    ═══════════════════════════════════════════════════════════════════ */
 
 import { getStore } from "@netlify/blobs";
@@ -57,53 +59,6 @@ async function loadOrders(store) {
 
 async function saveOrders(store, orders) {
   await store.setJSON(BLOB_KEY, orders);
-}
-
-/* Two staff members can tap "Accept" on the same order within
-   milliseconds of each other — a plain read-check-write here would
-   let BOTH succeed (both read the order before either has saved,
-   both see it unclaimed). That defeats the entire point of the
-   accept-lock, so this uses Netlify Blobs' conditional write
-   (onlyIfMatch against the blob's etag) in a short retry loop:
-   whoever's write actually lands first wins, the other's write is
-   rejected by the etag mismatch and retries against the now-updated
-   data, sees acceptedBy already set, and correctly bails with
-   already_accepted instead of quietly overwriting the winner.
-   This was verified against a simulated concurrent-accept race in
-   testing — worth a real two-phone test once deployed, since the
-   exact conditional-write behavior depends on the live Blobs
-   service, not just this code. */
-async function acceptOrderAtomic(store, orderId, session) {
-  const MAX_ATTEMPTS = 6;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const { data: orders, etag } = await store.getWithMetadata(BLOB_KEY, { type: "json" });
-    const list = Array.isArray(orders) ? orders : [];
-    const order = list.find((o) => String(o.id).toLowerCase() === orderId);
-    if (!order) return { error: "not_found" };
-    if (order.acceptedBy) {
-      return { error: "already_accepted", acceptedByName: order.acceptedByName, acceptedAt: order.acceptedAt };
-    }
-    if (order.status !== "new") return { error: "not_pending" };
-
-    order.status = "approved";
-    order.acceptedBy = session.staffId;
-    order.acceptedByName = session.staffName;
-    order.acceptedAt = new Date().toISOString();
-    pushHistory(order, "approved", session);
-
-    try {
-      await store.setJSON(BLOB_KEY, list, { onlyIfMatch: etag });
-      return { order };
-    } catch (err) {
-      // Someone else (very likely the other side of this exact race)
-      // wrote first — the etag no longer matches. Loop back and
-      // re-read fresh data; next pass will almost certainly see their
-      // acceptedBy and correctly return already_accepted instead of
-      // retrying forever.
-      continue;
-    }
-  }
-  return { error: "conflict_retry_exhausted" };
 }
 
 function trimTo(v, maxLen) {
@@ -147,60 +102,6 @@ async function handle(req) {
     const includeAll = url.searchParams.get("all") === "1";
     const items = includeAll ? orders : orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
     return Response.json({ ok: true, total: items.length, items });
-  }
-
-  // ─── Accept (claim) an order ────────────────────────────────────
-  if (req.method === "POST") {
-    if (!url.pathname.endsWith("/accept")) {
-      return Response.json({ ok: false, error: "not_found" }, { status: 404 });
-    }
-
-    let body;
-    try {
-      body = await req.json();
-    } catch {
-      return Response.json({ ok: false, error: "bad_request" }, { status: 400 });
-    }
-
-    const id = trimTo(body?.id, 40).toLowerCase();
-    if (!id) return Response.json({ ok: false, error: "id_required" }, { status: 400 });
-
-    const result = await acceptOrderAtomic(store, id, session);
-
-    if (result.error === "not_found") {
-      return Response.json({ ok: false, error: "not_found" }, { status: 404 });
-    }
-    if (result.error === "already_accepted") {
-      // Someone already got there first — this is the exact signal
-      // the app needs to stop alerting and show who accepted it instead.
-      return Response.json(
-        { ok: false, error: "already_accepted", acceptedByName: result.acceptedByName, acceptedAt: result.acceptedAt },
-        { status: 409 }
-      );
-    }
-    if (result.error === "not_pending") {
-      return Response.json({ ok: false, error: "not_pending" }, { status: 409 });
-    }
-    if (result.error === "conflict_retry_exhausted") {
-      // Extremely unlikely in practice (would need many staff hitting
-      // accept on the exact same order in the exact same instant,
-      // repeatedly) — safe to ask the app to just retry the tap.
-      return Response.json({ ok: false, error: "conflict_retry_exhausted", message: "Please try again." }, { status: 409 });
-    }
-
-    // Tells every OTHER staff phone to stop alerting for this order.
-    // AWAITED — un-awaited "fire-and-forget" calls can get killed mid-
-    // flight when Netlify tears down the function right after the
-    // Response is returned, before the push's network calls finish.
-    // sendStaffPush() never throws, so this can't fail/block the accept
-    // itself, which is already saved regardless.
-    await sendStaffPush({
-      type: "order_accepted",
-      orderId: result.order.id,
-      acceptedByName: result.order.acceptedByName
-    });
-
-    return Response.json({ ok: true, item: result.order });
   }
 
   // ─── Advance status (packing / packed / out_for_delivery / delivered) ──
@@ -249,6 +150,6 @@ async function handle(req) {
 }
 
 export const config = {
-  path: ["/api/staff-orders", "/api/staff-orders/accept"],
-  method: ["GET", "POST", "PATCH"]
+  path: "/api/staff-orders",
+  method: ["GET", "PATCH"]
 };
